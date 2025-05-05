@@ -6,7 +6,7 @@ const options = {
     info: {
       title: 'RWA Cosmos API',
       version: '1.0.0',
-      description: 'API para o projeto RWA Cosmos com autenticação via wallet e KYC',
+      description: 'API para o projeto RWA Cosmos com autenticação via wallet',
     },
     servers: [
       {
@@ -16,14 +16,14 @@ const options = {
     ],
     components: {
       securitySchemes: {
-        walletAuth: {
-          type: 'apiKey',
-          in: 'header',
-          name: 'x-wallet-address',
-          description: 'Endereço da wallet para autenticação',
-        },
-      },
-    },
+        bearerAuth: {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'JWT',
+          description: 'Token JWT obtido após autenticação com wallet'
+        }
+      }
+    }
   },
   apis: ['./src/routes/*.js'], // arquivos que contêm as anotações
 };

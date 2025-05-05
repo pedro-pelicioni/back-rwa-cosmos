@@ -4,6 +4,10 @@ const dotenv = require('dotenv');
 const fileUpload = require('express-fileupload');
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpecs = require('./config/swagger');
+const authRoutes = require('./routes/auth');
+const userRoutes = require('./routes/users');
+const adminRoutes = require('./routes/admin');
+const jwtAuth = require('./middleware/jwtAuth');
 
 // Configuração das variáveis de ambiente
 dotenv.config();
@@ -13,16 +17,23 @@ const app = express();
 // Middlewares
 app.use(cors());
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 app.use(fileUpload()); // Para upload de arquivos KYC
 
 // Swagger UI
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs));
 
-// Rotas
-app.use('/health', require('./routes/health'));
-app.use('/api/auth', require('./routes/auth'));
-app.use('/api/users', require('./routes/users'));
-app.use('/api/admin', require('./routes/admin'));
+// Rotas públicas
+app.use('/api/auth', authRoutes);
+
+// Rotas protegidas
+app.use('/api/users', jwtAuth, userRoutes);
+app.use('/api/admin', jwtAuth, adminRoutes);
+
+// Rota de saúde
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok' });
+});
 
 // Remover para o MVP atual
 // app.use('/api/products', require('./routes/products'));
