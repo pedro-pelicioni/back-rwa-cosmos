@@ -1,14 +1,16 @@
-CREATE TABLE IF NOT EXISTS users (
+-- Remover tabela se existir (desenvolvimento)
+DROP TABLE IF EXISTS kyc;
+DROP TABLE IF EXISTS users;
+
+-- Criar tabela de usuários com estrutura limpa para wallet
+CREATE TABLE users (
     id SERIAL PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
-    email VARCHAR(100) NOT NULL UNIQUE,
-    password VARCHAR(100) NOT NULL,
+    address VARCHAR(100) NOT NULL UNIQUE,
     role VARCHAR(20) NOT NULL DEFAULT 'user',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Inserir dados iniciais
-INSERT INTO users (name, email, password, role, created_at)
-VALUES 
-    ('João Silva', 'joao@email.com', '123456', 'admin', '2024-01-01'),
-    ('Maria Santos', 'maria@email.com', '123456', 'user', '2024-01-02'); 
+-- Inserir admin inicial
+INSERT INTO users (name, address, role) 
+VALUES ('Admin', 'neutron1admin', 'admin'); 

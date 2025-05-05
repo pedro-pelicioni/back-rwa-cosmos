@@ -1,6 +1,9 @@
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
+const fileUpload = require('express-fileupload');
+const swaggerUi = require('swagger-ui-express');
+const swaggerSpecs = require('./config/swagger');
 
 // Configuração das variáveis de ambiente
 dotenv.config();
@@ -10,15 +13,23 @@ const app = express();
 // Middlewares
 app.use(cors());
 app.use(express.json());
+app.use(fileUpload()); // Para upload de arquivos KYC
+
+// Swagger UI
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs));
 
 // Rotas
 app.use('/health', require('./routes/health'));
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/users', require('./routes/users'));
-app.use('/api/products', require('./routes/products'));
+app.use('/api/admin', require('./routes/admin'));
+
+// Remover para o MVP atual
+// app.use('/api/products', require('./routes/products'));
 
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
     console.log(`Servidor rodando na porta ${PORT}`);
+    console.log(`Documentação Swagger disponível em: http://localhost:${PORT}/api-docs`);
 }); 
