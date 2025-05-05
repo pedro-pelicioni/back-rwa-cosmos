@@ -14,6 +14,7 @@ src/
 │   └── adminController.js # Controlador de administração
 ├── middleware/            # Middlewares
 │   ├── walletAuth.js      # Autenticação via wallet
+│   ├── jwtAuth.js         # Validação de token JWT
 │   └── adminOnly.js       # Restrição para admin
 ├── routes/                # Rotas da API
 │   ├── auth.js            # Rotas de autenticação
@@ -56,10 +57,20 @@ CREATE TABLE kyc (
 );
 ```
 
+### Wallet Nonces
+```sql
+CREATE TABLE wallet_nonces (
+  address VARCHAR(100) PRIMARY KEY,
+  nonce VARCHAR(255) NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+```
+
 ## Rotas Disponíveis
 
 ### Autenticação (`/api/auth`)
-- `POST /wallet-login` - Login via endereço de carteira
+- `GET /nonce` - Obter nonce para autenticação
+- `POST /wallet-login` - Login via wallet com assinatura
 
 ### Usuários (`/api/users`)
 - `GET /me` - Obter dados do usuário autenticado
@@ -72,11 +83,14 @@ CREATE TABLE kyc (
 
 ## Fluxo de Autenticação
 
-O sistema utiliza autenticação baseada no endereço da carteira (wallet address):
+O sistema utiliza autenticação segura baseada em assinatura de mensagem:
 
-1. O usuário se conecta enviando seu endereço de carteira
-2. O backend verifica se o endereço existe ou cria um novo usuário
-3. Todas as requisições subsequentes exigem o cabeçalho `x-wallet-address`
+1. O frontend solicita um nonce para o endereço da wallet
+2. O backend gera e armazena um nonce único
+3. O usuário assina o nonce com sua wallet (Keplr)
+4. O frontend envia o endereço, nonce e assinatura
+5. O backend valida a assinatura e gera um token JWT
+6. Todas as requisições subsequentes exigem o cabeçalho `Authorization: Bearer <token>`
 
 ## Fluxo de KYC
 
@@ -84,6 +98,31 @@ O sistema utiliza autenticação baseada no endereço da carteira (wallet addres
 2. Documentos são armazenados (simulação IPFS)
 3. Admin visualiza a lista de KYCs pendentes
 4. Admin aprova ou rejeita o KYC
+
+## Exemplo de Requisições
+
+### Obter Nonce
+```http
+GET /api/auth/nonce?address=neutron1xyz123abc456def789ghi
+```
+
+### Login via Wallet
+```http
+POST /api/auth/wallet-login
+Content-Type: application/json
+
+{
+  "address": "neutron1xyz123abc456def789ghi",
+  "signature": "assinatura_gerada_pela_wallet",
+  "nonce": "nonce_obtido_anteriormente"
+}
+```
+
+### Requisição Autenticada
+```http
+GET /api/users/me
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
 
 ## Instalação
 
@@ -100,6 +139,7 @@ O sistema utiliza autenticação baseada no endereço da carteira (wallet addres
 3. Configure as variáveis de ambiente
    - Copie o arquivo `.env.example` para `.env`
    - Ajuste as variáveis do PostgreSQL
+   - Adicione `JWT_SECRET` para assinatura dos tokens
 
 4. Crie o banco de dados PostgreSQL
    ```bash
@@ -120,48 +160,13 @@ O sistema utiliza autenticação baseada no endereço da carteira (wallet addres
    npm start
    ```
 
-## Exemplo de Requisições
-
-### Login via Wallet
-```http
-POST /api/auth/wallet-login
-Content-Type: application/json
-
-{
-  "address": "neutron1xyz123abc456def789ghi"
-}
-```
-
-### Enviar KYC
-```http
-POST /api/users/kyc
-x-wallet-address: neutron1xyz123abc456def789ghi
-Content-Type: multipart/form-data
-
-nome: João Silva
-cpf: 123.456.789-00
-documento_frente: [arquivo]
-documento_verso: [arquivo]
-selfie_1: [arquivo]
-selfie_2: [arquivo]
-```
-
-### Aprovar KYC (Admin)
-```http
-PATCH /api/admin/kyc-status/1
-x-wallet-address: neutron1admin
-Content-Type: application/json
-
-{
-  "status": "aprovado"
-}
-```
-
 ## Requisitos
 
 - Node.js (versão 14 ou superior)
 - PostgreSQL
 - express-fileupload (para upload de documentos)
+- jsonwebtoken (para autenticação JWT)
+- @cosmjs/amino (para validação de assinaturas)
 
 ## Licença
 
