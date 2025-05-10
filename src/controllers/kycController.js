@@ -17,12 +17,12 @@ const simulateIpfsUpload = (file) => {
 exports.submitKyc = async (req, res) => {
   try {
     const { nome, cpf } = req.body;
-    const address = req.user.address;
+    const walletAddress = req.user.wallet_address;
     
     // Verificar se já existe KYC para este usuário
     const existingKyc = await pool.query(
-      'SELECT * FROM kyc WHERE user_address = $1',
-      [address]
+      'SELECT * FROM kyc WHERE wallet_address = $1',
+      [walletAddress]
     );
     
     if (existingKyc.rows.length > 0) {
@@ -56,10 +56,10 @@ exports.submitKyc = async (req, res) => {
     // Salvar no banco de dados
     const result = await pool.query(
       `INSERT INTO kyc 
-        (user_address, nome, cpf, documento_frente_cid, documento_verso_cid, selfie_1_cid, selfie_2_cid, status) 
+        (wallet_address, nome, cpf, documento_frente_cid, documento_verso_cid, selfie_1_cid, selfie_2_cid, status) 
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8) 
        RETURNING *`,
-      [address, nome, cpf, documento_frente_cid, documento_verso_cid, selfie_1_cid, selfie_2_cid, 'pendente']
+      [walletAddress, nome, cpf, documento_frente_cid, documento_verso_cid, selfie_1_cid, selfie_2_cid, 'pendente']
     );
     
     res.status(201).json({
@@ -75,11 +75,11 @@ exports.submitKyc = async (req, res) => {
 // Obter KYC do usuário
 exports.getKyc = async (req, res) => {
   try {
-    const address = req.user.address;
+    const walletAddress = req.user.wallet_address;
     
     const result = await pool.query(
-      'SELECT * FROM kyc WHERE user_address = $1',
-      [address]
+      'SELECT * FROM kyc WHERE wallet_address = $1',
+      [walletAddress]
     );
     
     if (result.rows.length === 0) {

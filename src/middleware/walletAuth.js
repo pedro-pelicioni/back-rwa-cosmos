@@ -23,18 +23,18 @@ const walletAuth = async (req, res, next) => {
     
     // Verificar se o usuário existe no banco
     const result = await pool.query(
-      'SELECT * FROM users WHERE address = $1',
+      'SELECT * FROM users WHERE wallet_address = $1',
       [walletAddress]
     );
     
     if (result.rows.length === 0) {
       // Se não existir, cria um novo usuário (auto-registro)
-      // Gerar um nome padrão baseado no endereço da carteira
-      const name = `User ${walletAddress.substring(0, 8)}`;
+      // Gerar um email padrão baseado no endereço da carteira
+      const email = `${walletAddress.substring(0, 8)}@rwa.com`;
       
       const newUserResult = await pool.query(
-        'INSERT INTO users (address, name, role) VALUES ($1, $2, $3) RETURNING *',
-        [walletAddress, name, 'user']
+        'INSERT INTO users (wallet_address, email) VALUES ($1, $2) RETURNING *',
+        [walletAddress, email]
       );
       
       req.user = newUserResult.rows[0];

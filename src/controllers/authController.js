@@ -211,17 +211,17 @@ exports.walletLogin = async (req, res) => {
     
     // Verificar se o usuário existe
     let result = await pool.query(
-      'SELECT * FROM users WHERE address = $1',
+      'SELECT * FROM users WHERE wallet_address = $1',
       [address]
     );
     
     // Se não existir, criar um novo usuário
     if (result.rows.length === 0) {
-      const name = `User ${address.substring(0, 8)}`;
+      const email = `${address.substring(0, 8)}@rwa.com`;
       
       result = await pool.query(
-        'INSERT INTO users (address, name, role) VALUES ($1, $2, $3) RETURNING *',
-        [address, name, 'user']
+        'INSERT INTO users (wallet_address, email) VALUES ($1, $2) RETURNING *',
+        [address, email]
       );
     }
     
@@ -230,9 +230,9 @@ exports.walletLogin = async (req, res) => {
     // Gerar token JWT
     const token = jwt.sign(
       { 
-        address: user.address,
-        role: user.role,
-        id: user.id
+        wallet_address: user.wallet_address,
+        id: user.id,
+        email: user.email
       },
       process.env.JWT_SECRET,
       { expiresIn: '12h' }
@@ -242,9 +242,8 @@ exports.walletLogin = async (req, res) => {
       token,
       user: {
         id: user.id,
-        name: user.name,
-        address: user.address,
-        role: user.role
+        email: user.email,
+        wallet_address: user.wallet_address
       }
     });
   } catch (error) {

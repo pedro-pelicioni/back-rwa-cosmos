@@ -6,12 +6,12 @@ const { pool } = require('../database/connection');
 // Obter dados do usuário atualmente logado
 exports.getMe = async (req, res) => {
   try {
-    const address = req.user.address;
+    const walletAddress = req.user.wallet_address;
     
     // Buscar informações do usuário
     const userResult = await pool.query(
-      'SELECT id, address, role, created_at FROM users WHERE address = $1',
-      [address]
+      'SELECT id, email, wallet_address, created_at FROM users WHERE wallet_address = $1',
+      [walletAddress]
     );
     
     if (userResult.rows.length === 0) {
@@ -22,8 +22,8 @@ exports.getMe = async (req, res) => {
     
     // Verificar se possui KYC
     const kycResult = await pool.query(
-      'SELECT id, nome, status, created_at FROM kyc WHERE user_address = $1',
-      [address]
+      'SELECT id, nome, status, created_at FROM kyc WHERE wallet_address = $1',
+      [walletAddress]
     );
     
     // Adicionar informações de KYC se existir
@@ -42,7 +42,7 @@ exports.getMe = async (req, res) => {
 exports.submitKyc = async (req, res) => {
   try {
     const { nome, cpf } = req.body;
-    const address = req.user.address;
+    const walletAddress = req.user.wallet_address;
 
     // Validar campos obrigatórios
     if (!nome || !cpf || !req.files) {
@@ -58,8 +58,8 @@ exports.submitKyc = async (req, res) => {
 
     // Verificar se já existe KYC para este usuário
     const existingKyc = await pool.query(
-      'SELECT id FROM kyc WHERE user_address = $1',
-      [address]
+      'SELECT id FROM kyc WHERE wallet_address = $1',
+      [walletAddress]
     );
 
     if (existingKyc.rows.length > 0) {
@@ -75,12 +75,12 @@ exports.submitKyc = async (req, res) => {
     // Inserir KYC no banco
     const result = await pool.query(
       `INSERT INTO kyc (
-        user_address, nome, cpf,
+        wallet_address, nome, cpf,
         documento_frente_cid, documento_verso_cid,
         selfie_1_cid, selfie_2_cid, status
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
       [
-        address, nome, cpf,
+        walletAddress, nome, cpf,
         documento_frente_cid, documento_verso_cid,
         selfie_1_cid, selfie_2_cid, 'pendente'
       ]
@@ -99,12 +99,12 @@ exports.submitKyc = async (req, res) => {
 // Obter status do KYC
 exports.getKyc = async (req, res) => {
   try {
-    const address = req.user.address;
+    const walletAddress = req.user.wallet_address;
 
     const result = await pool.query(
       `SELECT id, nome, cpf, status, created_at
-       FROM kyc WHERE user_address = $1`,
-      [address]
+       FROM kyc WHERE wallet_address = $1`,
+      [walletAddress]
     );
 
     if (result.rows.length === 0) {
