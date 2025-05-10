@@ -1,4 +1,4 @@
-const db = require('../database/connection');
+const { pool } = require('../database/connection');
 
 class RWAImage {
     static async create(imageData) {
@@ -13,7 +13,7 @@ class RWAImage {
         const values = [rwa_id, title, description, cid_link, file_path, display_order];
         
         try {
-            const result = await db.query(query, values);
+            const result = await pool.query(query, values);
             return result.rows[0];
         } catch (error) {
             throw new Error(`Erro ao criar imagem do RWA: ${error.message}`);
@@ -24,7 +24,7 @@ class RWAImage {
         const query = 'SELECT * FROM rwa_images WHERE id = $1';
         
         try {
-            const result = await db.query(query, [id]);
+            const result = await pool.query(query, [id]);
             return result.rows[0];
         } catch (error) {
             throw new Error(`Erro ao buscar imagem do RWA: ${error.message}`);
@@ -35,7 +35,7 @@ class RWAImage {
         const query = 'SELECT * FROM rwa_images WHERE rwa_id = $1 ORDER BY display_order ASC';
         
         try {
-            const result = await db.query(query, [rwa_id]);
+            const result = await pool.query(query, [rwa_id]);
             return result.rows;
         } catch (error) {
             throw new Error(`Erro ao buscar imagens do RWA: ${error.message}`);
@@ -60,7 +60,7 @@ class RWAImage {
         const values = [title, description, cid_link, file_path, display_order, id];
         
         try {
-            const result = await db.query(query, values);
+            const result = await pool.query(query, values);
             return result.rows[0];
         } catch (error) {
             throw new Error(`Erro ao atualizar imagem do RWA: ${error.message}`);
@@ -71,7 +71,7 @@ class RWAImage {
         const query = 'DELETE FROM rwa_images WHERE id = $1 RETURNING *';
         
         try {
-            const result = await db.query(query, [id]);
+            const result = await pool.query(query, [id]);
             return result.rows[0];
         } catch (error) {
             throw new Error(`Erro ao deletar imagem do RWA: ${error.message}`);
@@ -80,7 +80,7 @@ class RWAImage {
 
     static async reorder(rwa_id, imageOrders) {
         // imageOrders deve ser um array de objetos {id, display_order}
-        const client = await db.getClient();
+        const client = await pool.connect();
         
         try {
             await client.query('BEGIN');

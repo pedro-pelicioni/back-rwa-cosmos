@@ -1,4 +1,4 @@
-const db = require('../database/connection');
+const { pool } = require('../database/connection');
 
 class RWA {
     static async create(rwaData) {
@@ -32,7 +32,7 @@ class RWA {
         ];
 
         try {
-            const result = await db.query(query, values);
+            const result = await pool.query(query, values);
             return result.rows[0];
         } catch (error) {
             throw new Error(`Erro ao criar RWA: ${error.message}`);
@@ -50,7 +50,7 @@ class RWA {
         `;
 
         try {
-            const result = await db.query(query, [id]);
+            const result = await pool.query(query, [id]);
             return result.rows[0];
         } catch (error) {
             throw new Error(`Erro ao buscar RWA: ${error.message}`);
@@ -67,7 +67,7 @@ class RWA {
         `;
 
         try {
-            const result = await db.query(query, [userId]);
+            const result = await pool.query(query, [userId]);
             return result.rows;
         } catch (error) {
             throw new Error(`Erro ao buscar RWAs do usuário: ${error.message}`);
@@ -115,7 +115,7 @@ class RWA {
         ];
 
         try {
-            const result = await db.query(query, values);
+            const result = await pool.query(query, values);
             return result.rows[0];
         } catch (error) {
             throw new Error(`Erro ao atualizar RWA: ${error.message}`);
@@ -126,7 +126,7 @@ class RWA {
         const query = 'DELETE FROM rwa WHERE id = $1 RETURNING *';
 
         try {
-            const result = await db.query(query, [id]);
+            const result = await pool.query(query, [id]);
             return result.rows[0];
         } catch (error) {
             throw new Error(`Erro ao deletar RWA: ${error.message}`);
@@ -172,7 +172,7 @@ class RWA {
         values.push(limit, offset);
 
         try {
-            const result = await db.query(query, values);
+            const result = await pool.query(query, values);
             return result.rows;
         } catch (error) {
             throw new Error(`Erro ao listar RWAs: ${error.message}`);
@@ -198,7 +198,7 @@ class RWA {
         `;
 
         try {
-            const result = await db.query(query, [longitude, latitude, radiusInMeters]);
+            const result = await pool.query(query, [longitude, latitude, radiusInMeters]);
             return result.rows;
         } catch (error) {
             throw new Error(`Erro ao buscar RWAs por proximidade: ${error.message}`);

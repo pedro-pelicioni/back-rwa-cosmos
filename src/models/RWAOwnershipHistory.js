@@ -1,4 +1,4 @@
-const db = require('../config/database');
+const { pool } = require('../database/connection');
 
 class RWAOwnershipHistory {
   static async create(historyData) {
@@ -9,25 +9,25 @@ class RWAOwnershipHistory {
       RETURNING *
     `;
     const values = [rwa_id, token_id, from_user_id, to_user_id, quantity, tx_hash];
-    const result = await db.query(query, values);
+    const result = await pool.query(query, values);
     return result.rows[0];
   }
 
   static async getById(id) {
     const query = 'SELECT * FROM rwa_ownership_history WHERE id = $1';
-    const result = await db.query(query, [id]);
+    const result = await pool.query(query, [id]);
     return result.rows[0];
   }
 
   static async getByRWAId(rwa_id) {
     const query = 'SELECT * FROM rwa_ownership_history WHERE rwa_id = $1 ORDER BY transfer_date DESC';
-    const result = await db.query(query, [rwa_id]);
+    const result = await pool.query(query, [rwa_id]);
     return result.rows;
   }
 
   static async getByTokenId(token_id) {
     const query = 'SELECT * FROM rwa_ownership_history WHERE token_id = $1 ORDER BY transfer_date DESC';
-    const result = await db.query(query, [token_id]);
+    const result = await pool.query(query, [token_id]);
     return result.rows;
   }
 
@@ -44,7 +44,7 @@ class RWAOwnershipHistory {
         ORDER BY transfer_date DESC
       `;
     }
-    const result = await db.query(query, [user_id]);
+    const result = await pool.query(query, [user_id]);
     return result.rows;
   }
 
@@ -62,13 +62,13 @@ class RWAOwnershipHistory {
       RETURNING *
     `;
     const values = [token_id, from_user_id, to_user_id, quantity, tx_hash, id];
-    const result = await db.query(query, values);
+    const result = await pool.query(query, values);
     return result.rows[0];
   }
 
   static async delete(id) {
     const query = 'DELETE FROM rwa_ownership_history WHERE id = $1 RETURNING *';
-    const result = await db.query(query, [id]);
+    const result = await pool.query(query, [id]);
     return result.rows[0];
   }
 }

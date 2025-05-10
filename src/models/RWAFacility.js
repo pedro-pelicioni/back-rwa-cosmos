@@ -1,4 +1,4 @@
-const db = require('../database/connection');
+const { pool } = require('../database/connection');
 
 class RWAFacility {
     static async create(facilityData) {
@@ -13,7 +13,7 @@ class RWAFacility {
         const values = [rwa_id, name, description, size_m2, floor_number, type, status];
         
         try {
-            const result = await db.query(query, values);
+            const result = await pool.query(query, values);
             return result.rows[0];
         } catch (error) {
             throw new Error(`Erro ao criar instalação do RWA: ${error.message}`);
@@ -24,7 +24,7 @@ class RWAFacility {
         const query = 'SELECT * FROM rwa_facilities WHERE id = $1';
         
         try {
-            const result = await db.query(query, [id]);
+            const result = await pool.query(query, [id]);
             return result.rows[0];
         } catch (error) {
             throw new Error(`Erro ao buscar instalação do RWA: ${error.message}`);
@@ -35,7 +35,7 @@ class RWAFacility {
         const query = 'SELECT * FROM rwa_facilities WHERE rwa_id = $1 ORDER BY type, name';
         
         try {
-            const result = await db.query(query, [rwa_id]);
+            const result = await pool.query(query, [rwa_id]);
             return result.rows;
         } catch (error) {
             throw new Error(`Erro ao buscar instalações do RWA: ${error.message}`);
@@ -46,7 +46,7 @@ class RWAFacility {
         const query = 'SELECT * FROM rwa_facilities WHERE rwa_id = $1 AND type = $2 ORDER BY name';
         
         try {
-            const result = await db.query(query, [rwa_id, type]);
+            const result = await pool.query(query, [rwa_id, type]);
             return result.rows;
         } catch (error) {
             throw new Error(`Erro ao buscar instalações por tipo: ${error.message}`);
@@ -72,7 +72,7 @@ class RWAFacility {
         const values = [name, description, size_m2, floor_number, type, status, id];
         
         try {
-            const result = await db.query(query, values);
+            const result = await pool.query(query, values);
             return result.rows[0];
         } catch (error) {
             throw new Error(`Erro ao atualizar instalação do RWA: ${error.message}`);
@@ -83,7 +83,7 @@ class RWAFacility {
         const query = 'DELETE FROM rwa_facilities WHERE id = $1 RETURNING *';
         
         try {
-            const result = await db.query(query, [id]);
+            const result = await pool.query(query, [id]);
             return result.rows[0];
         } catch (error) {
             throw new Error(`Erro ao deletar instalação do RWA: ${error.message}`);
@@ -94,7 +94,7 @@ class RWAFacility {
         const query = 'SELECT DISTINCT type FROM rwa_facilities ORDER BY type';
         
         try {
-            const result = await db.query(query);
+            const result = await pool.query(query);
             return result.rows.map(row => row.type);
         } catch (error) {
             throw new Error(`Erro ao buscar tipos de instalações: ${error.message}`);
@@ -140,7 +140,7 @@ class RWAFacility {
         query += ' ORDER BY type, name';
 
         try {
-            const result = await db.query(query, values);
+            const result = await pool.query(query, values);
             return result.rows;
         } catch (error) {
             throw new Error(`Erro ao buscar instalações com filtros: ${error.message}`);
