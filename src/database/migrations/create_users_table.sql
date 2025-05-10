@@ -1,16 +1,16 @@
 -- Remover tabela se existir (desenvolvimento)
 DROP TABLE IF EXISTS kyc;
-DROP TABLE IF EXISTS users;
+DROP TABLE IF EXISTS users CASCADE;
 
 -- Criar tabela de usuários com estrutura limpa para wallet
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
-    name VARCHAR(100) NOT NULL,
-    address VARCHAR(100) NOT NULL UNIQUE,
-    role VARCHAR(20) NOT NULL DEFAULT 'user',
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    email VARCHAR(255) UNIQUE NOT NULL,
+    wallet_address VARCHAR(255) UNIQUE NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Inserir admin inicial
-INSERT INTO users (name, address, role) 
-VALUES ('Admin', 'neutron1admin', 'admin'); 
+INSERT INTO users (email, wallet_address) 
+VALUES ('admin@rwa.com', 'neutron1admin'); 

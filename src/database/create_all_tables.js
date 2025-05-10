@@ -1,41 +1,49 @@
+const fs = require('fs');
+const path = require('path');
 const { pool } = require('./connection');
 
-const queries = [
-  `CREATE TABLE IF NOT EXISTS users (
-    id SERIAL PRIMARY KEY,
-    address VARCHAR(100) NOT NULL UNIQUE,
-    name VARCHAR(100),
-    role VARCHAR(20) NOT NULL DEFAULT 'user',
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-  );`,
-  `CREATE TABLE IF NOT EXISTS kyc (
-    id SERIAL PRIMARY KEY,
-    user_address VARCHAR(100) REFERENCES users(address),
-    nome VARCHAR(100),
-    cpf VARCHAR(20),
-    documento_frente_cid VARCHAR(255),
-    documento_verso_cid VARCHAR(255),
-    selfie_1_cid VARCHAR(255),
-    selfie_2_cid VARCHAR(255),
-    status VARCHAR(20) DEFAULT 'pendente',
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-  );`,
-  `CREATE TABLE IF NOT EXISTS wallet_nonces (
-    address VARCHAR(100) PRIMARY KEY,
-    nonce VARCHAR(255) NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-  );`
-];
+async function createAllTables() {
+    try {
+        // Lê todos os arquivos SQL na pasta migrations
+        const migrationsDir = path.join(__dirname, 'migrations');
+        const files = fs.readdirSync(migrationsDir)
+            .filter(file => file.endsWith('.sql'))
+            .sort(); // Garante ordem alfabética
 
-(async () => {
-  try {
-    for (const query of queries) {
-      await pool.query(query);
+        // Executa cada arquivo SQL em sequência
+        for (const file of files) {
+            const filePath = path.join(migrationsDir, file);
+            const sql = fs.readFileSync(filePath, 'utf8');
+            
+            console.log(`Executando migração: ${file}`);
+            try {
+                await pool.query(sql);
+                console.log(`Migração ${file} concluída com sucesso`);
+            } catch (error) {
+                // Ignora erro de tabela já existente
+                if (error.code === '42P07') {
+                    console.log(`Tabela já existe, ignorando erro: ${file}`);
+                } else {
+                    throw error;
+                }
+            }
+        }
+
+        console.log('Todas as tabelas foram criadas com sucesso!');
+    } catch (error) {
+        console.error('Erro ao criar tabelas:', error);
+        throw error;
     }
-    console.log('Tabelas criadas ou já existentes!');
-    process.exit(0);
-  } catch (err) {
-    console.error('Erro ao criar tabelas:', err);
-    process.exit(1);
-  }
-})(); 
+}
+
+// Executa a função se este arquivo for executado diretamente
+if (require.main === module) {
+    createAllTables()
+        .then(() => process.exit(0))
+        .catch(error => {
+            console.error(error);
+            process.exit(1);
+        });
+}
+
+module.exports = createAllTables; 
