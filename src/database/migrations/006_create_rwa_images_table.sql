@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS rwa_images (
     description TEXT,
     cid_link VARCHAR(255),
     file_path VARCHAR(255),
+    image_data TEXT,
     display_order INTEGER NOT NULL DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

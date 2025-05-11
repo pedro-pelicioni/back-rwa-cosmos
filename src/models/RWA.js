@@ -19,16 +19,15 @@ class RWA {
         const query = `
             INSERT INTO rwa (
                 user_id, name, gps_coordinates, city, country, description,
-                current_value, total_tokens, year_built, size_m2, geometry
+                current_value, total_tokens, year_built, size_m2
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, ST_GeomFromGeoJSON($11))
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
             RETURNING *
         `;
 
         const values = [
             userId, name, gpsCoordinates, city, country, description,
-            currentValue, totalTokens, yearBuilt, sizeM2,
-            geometry ? JSON.stringify(geometry) : null
+            currentValue, totalTokens, yearBuilt, sizeM2
         ];
 
         try {
@@ -42,8 +41,7 @@ class RWA {
     static async findById(id) {
         const query = `
             SELECT r.*, 
-                   u.email as owner_email,
-                   ST_AsGeoJSON(r.geometry)::json as geometry
+                   u.email as owner_email
             FROM rwa r
             JOIN users u ON r.user_id = u.id
             WHERE r.id = $1
@@ -59,8 +57,7 @@ class RWA {
 
     static async findByUserId(userId) {
         const query = `
-            SELECT r.*, 
-                   ST_AsGeoJSON(r.geometry)::json as geometry
+            SELECT r.*
             FROM rwa r
             WHERE r.user_id = $1
             ORDER BY r.created_at DESC
@@ -85,8 +82,7 @@ class RWA {
             totalTokens,
             yearBuilt,
             sizeM2,
-            status,
-            geometry
+            status
         } = rwaData;
 
         const query = `
@@ -102,16 +98,15 @@ class RWA {
                 year_built = COALESCE($8, year_built),
                 size_m2 = COALESCE($9, size_m2),
                 status = COALESCE($10, status),
-                geometry = COALESCE(ST_GeomFromGeoJSON($11), geometry),
                 updated_at = CURRENT_TIMESTAMP
-            WHERE id = $12
-            RETURNING *, ST_AsGeoJSON(geometry)::json as geometry
+            WHERE id = $11
+            RETURNING *
         `;
 
         const values = [
             name, gpsCoordinates, city, country, description,
             currentValue, totalTokens, yearBuilt, sizeM2,
-            status, geometry ? JSON.stringify(geometry) : null, id
+            status, id
         ];
 
         try {
@@ -135,8 +130,7 @@ class RWA {
 
     static async listAll(filters = {}, page = 1, limit = 10) {
         let query = `
-            SELECT r.*, 
-                   ST_AsGeoJSON(r.geometry)::json as geometry
+            SELECT r.*
             FROM rwa r
         `;
         const values = [];
@@ -179,26 +173,17 @@ class RWA {
         }
     }
 
-    // Método para buscar RWAs por proximidade
+    // Método para buscar RWAs por proximidade - simplificado sem postgis
     static async findByProximity(latitude, longitude, radiusInMeters = 1000) {
+        // Implementação simplificada - retorna todos os RWAs
         const query = `
-            SELECT r.*, 
-                   ST_AsGeoJSON(r.geometry)::json as geometry,
-                   ST_Distance(
-                       r.geometry::geography,
-                       ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography
-                   ) as distance
+            SELECT r.*
             FROM rwa r
-            WHERE ST_DWithin(
-                r.geometry::geography,
-                ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography,
-                $3
-            )
-            ORDER BY distance
+            ORDER BY r.created_at DESC
         `;
 
         try {
-            const result = await pool.query(query, [longitude, latitude, radiusInMeters]);
+            const result = await pool.query(query);
             return result.rows;
         } catch (error) {
             throw new Error(`Erro ao buscar RWAs por proximidade: ${error.message}`);

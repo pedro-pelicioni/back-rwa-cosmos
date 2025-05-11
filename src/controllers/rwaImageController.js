@@ -4,10 +4,10 @@ const RWA = require('../models/RWA');
 class RWAImageController {
     static async create(req, res) {
         try {
-            const { rwa_id, title, description, cid_link, file_path, display_order } = req.body;
+            const { rwa_id, title, description, cid_link, file_path, image_data, display_order = 0 } = req.body;
 
             // Verificar se o RWA existe
-            const rwa = await RWA.getById(rwa_id);
+            const rwa = await RWA.findById(rwa_id);
             if (!rwa) {
                 return res.status(404).json({ error: 'RWA não encontrado' });
             }
@@ -17,17 +17,51 @@ class RWAImageController {
                 return res.status(403).json({ error: 'Sem permissão para adicionar imagens a este RWA' });
             }
 
+            // Validar tamanho da imagem em base64 (limite de 10MB)
+            if (image_data) {
+                // Remover prefixo data:image/jpeg;base64, se existir
+                const base64Data = image_data.replace(/^data:image\/\w+;base64,/, '');
+                
+                // Calcular tamanho em bytes: tamanho_string * 0.75 (aproximadamente)
+                const sizeInBytes = base64Data.length * 0.75;
+                const MAX_SIZE = 10 * 1024 * 1024; // 10MB em bytes
+                
+                if (sizeInBytes > MAX_SIZE) {
+                    return res.status(400).json({ 
+                        error: 'Imagem excede o tamanho máximo permitido de 10MB' 
+                    });
+                }
+            }
+
+            // Buscar o maior display_order existente para este RWA, se não foi fornecido
+            let nextDisplayOrder = display_order;
+            if (nextDisplayOrder === 0) {
+                try {
+                    const images = await RWAImage.getByRWAId(rwa_id);
+                    if (images && images.length > 0) {
+                        // Encontra o maior display_order existente e adiciona 1
+                        const maxOrder = Math.max(...images.map(img => img.display_order));
+                        nextDisplayOrder = maxOrder + 1;
+                    }
+                } catch (error) {
+                    console.error('Erro ao buscar ordem de exibição:', error);
+                    // Se falhar, mantém o padrão 0
+                }
+            }
+
             const image = await RWAImage.create({
                 rwa_id,
                 title,
                 description,
                 cid_link,
                 file_path,
-                display_order
+                image_data,
+                display_order: nextDisplayOrder
             });
 
             res.status(201).json(image);
         } catch (error) {
+            console.error('Erro ao criar imagem:', error);
             res.status(500).json({ error: error.message });
         }
     }
@@ -60,7 +94,7 @@ class RWAImageController {
     static async update(req, res) {
         try {
             const { id } = req.params;
-            const { title, description, cid_link, file_path, display_order } = req.body;
+            const { title, description, cid_link, file_path, display_order = 0, image_data } = req.body;
 
             // Verificar se a imagem existe
             const image = await RWAImage.getById(id);
@@ -69,9 +103,25 @@ class RWAImageController {
             }
 
             // Verificar se o usuário tem permissão para atualizar
-            const rwa = await RWA.getById(image.rwa_id);
+            const rwa = await RWA.findById(image.rwa_id);
             if (rwa.user_id !== req.user.id) {
                 return res.status(403).json({ error: 'Sem permissão para atualizar esta imagem' });
+            }
+
+            // Validar tamanho da imagem em base64 (limite de 10MB)
+            if (image_data) {
+                // Remover prefixo data:image/jpeg;base64, se existir
+                const base64Data = image_data.replace(/^data:image\/\w+;base64,/, '');
+                
+                // Calcular tamanho em bytes: tamanho_string * 0.75 (aproximadamente)
+                const sizeInBytes = base64Data.length * 0.75;
+                const MAX_SIZE = 10 * 1024 * 1024; // 10MB em bytes
+                
+                if (sizeInBytes > MAX_SIZE) {
+                    return res.status(400).json({ 
+                        error: 'Imagem excede o tamanho máximo permitido de 10MB' 
+                    });
+                }
             }
 
             const updatedImage = await RWAImage.update(id, {
@@ -79,11 +129,13 @@ class RWAImageController {
                 description,
                 cid_link,
                 file_path,
+                image_data,
                 display_order
             });
 
             res.json(updatedImage);
         } catch (error) {
+            console.error('Erro ao atualizar imagem:', error);
             res.status(500).json({ error: error.message });
         }
     }
@@ -99,7 +151,7 @@ class RWAImageController {
             }
 
             // Verificar se o usuário tem permissão para deletar
-            const rwa = await RWA.getById(image.rwa_id);
+            const rwa = await RWA.findById(image.rwa_id);
             if (rwa.user_id !== req.user.id) {
                 return res.status(403).json({ error: 'Sem permissão para deletar esta imagem' });
             }
@@ -117,7 +169,7 @@ class RWAImageController {
             const { imageOrders } = req.body;
 
             // Verificar se o RWA existe
-            const rwa = await RWA.getById(rwa_id);
+            const rwa = await RWA.findById(rwa_id);
             if (!rwa) {
                 return res.status(404).json({ error: 'RWA não encontrado' });
             }

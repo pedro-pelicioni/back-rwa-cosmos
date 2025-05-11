@@ -2,15 +2,15 @@ const { pool } = require('../database/connection');
 
 class RWAImage {
     static async create(imageData) {
-        const { rwa_id, title, description, cid_link, file_path, display_order } = imageData;
+        const { rwa_id, title, description, cid_link, file_path, image_data, display_order } = imageData;
         
         const query = `
-            INSERT INTO rwa_images (rwa_id, title, description, cid_link, file_path, display_order)
-            VALUES ($1, $2, $3, $4, $5, $6)
+            INSERT INTO rwa_images (rwa_id, title, description, cid_link, file_path, image_data, display_order)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
             RETURNING *
         `;
         
-        const values = [rwa_id, title, description, cid_link, file_path, display_order];
+        const values = [rwa_id, title, description, cid_link, file_path, image_data, display_order];
         
         try {
             const result = await pool.query(query, values);
@@ -43,7 +43,7 @@ class RWAImage {
     }
 
     static async update(id, imageData) {
-        const { title, description, cid_link, file_path, display_order } = imageData;
+        const { title, description, cid_link, file_path, image_data, display_order } = imageData;
         
         const query = `
             UPDATE rwa_images
@@ -51,13 +51,14 @@ class RWAImage {
                 description = $2,
                 cid_link = $3,
                 file_path = $4,
-                display_order = $5,
+                image_data = $5,
+                display_order = $6,
                 updated_at = CURRENT_TIMESTAMP
-            WHERE id = $6
+            WHERE id = $7
             RETURNING *
         `;
         
-        const values = [title, description, cid_link, file_path, display_order, id];
+        const values = [title, description, cid_link, file_path, image_data, display_order, id];
         
         try {
             const result = await pool.query(query, values);

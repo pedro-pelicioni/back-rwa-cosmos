@@ -5,6 +5,51 @@ const jwtAuth = require('../middleware/jwtAuth');
 
 /**
  * @swagger
+ * tags:
+ *   name: RWA Images
+ *   description: Gerenciamento de imagens de RWA
+ * 
+ * components:
+ *  schemas:
+ *    RWAImage:
+ *      type: object
+ *      properties:
+ *        id:
+ *          type: integer
+ *          description: ID da imagem
+ *        rwa_id:
+ *          type: integer
+ *          description: ID do RWA
+ *        title:
+ *          type: string
+ *          description: Título da imagem
+ *        description:
+ *          type: string
+ *          description: Descrição da imagem
+ *        cid_link:
+ *          type: string
+ *          description: Link IPFS da imagem
+ *        file_path:
+ *          type: string
+ *          description: Caminho do arquivo
+ *        image_data:
+ *          type: string
+ *          description: Imagem codificada em base64 (max 10MB)
+ *        display_order:
+ *          type: integer
+ *          description: Ordem de exibição
+ *        created_at:
+ *          type: string
+ *          format: date-time
+ *          description: Data de criação
+ *        updated_at:
+ *          type: string
+ *          format: date-time
+ *          description: Data de atualização
+ */
+
+/**
+ * @swagger
  * /api/rwa/images:
  *   post:
  *     summary: Cria uma nova imagem para um RWA
@@ -16,7 +61,32 @@ const jwtAuth = require('../middleware/jwtAuth');
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/RWAImage'
+ *             type: object
+ *             required:
+ *               - rwa_id
+ *               - title
+ *             properties:
+ *               rwa_id:
+ *                 type: integer
+ *                 description: ID do RWA
+ *               title:
+ *                 type: string
+ *                 description: Título da imagem
+ *               description:
+ *                 type: string
+ *                 description: Descrição da imagem
+ *               cid_link:
+ *                 type: string
+ *                 description: Link IPFS da imagem
+ *               file_path:
+ *                 type: string
+ *                 description: Caminho do arquivo
+ *               image_data:
+ *                 type: string
+ *                 description: Imagem codificada em base64 (max 10MB)
+ *               display_order:
+ *                 type: integer
+ *                 description: Ordem de exibição
  *     responses:
  *       201:
  *         description: Imagem criada com sucesso
@@ -25,7 +95,7 @@ const jwtAuth = require('../middleware/jwtAuth');
  *             schema:
  *               $ref: '#/components/schemas/RWAImage'
  *       400:
- *         description: Dados inválidos
+ *         description: Dados inválidos ou imagem muito grande (>10MB)
  *         content:
  *           application/json:
  *             schema:
@@ -103,7 +173,26 @@ router.get('/rwa/:rwa_id', RWAImageController.getByRWAId);
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/RWAImage'
+ *             type: object
+ *             properties:
+ *               title:
+ *                 type: string
+ *                 description: Título da imagem
+ *               description:
+ *                 type: string
+ *                 description: Descrição da imagem
+ *               cid_link:
+ *                 type: string
+ *                 description: Link IPFS da imagem
+ *               file_path:
+ *                 type: string
+ *                 description: Caminho do arquivo
+ *               image_data:
+ *                 type: string
+ *                 description: Imagem codificada em base64 (max 10MB)
+ *               display_order:
+ *                 type: integer
+ *                 description: Ordem de exibição
  *     responses:
  *       200:
  *         description: Imagem atualizada com sucesso
@@ -111,6 +200,8 @@ router.get('/rwa/:rwa_id', RWAImageController.getByRWAId);
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/RWAImage'
+ *       400:
+ *         description: Dados inválidos ou imagem muito grande (>10MB)
  *       404:
  *         description: Imagem não encontrada
  */

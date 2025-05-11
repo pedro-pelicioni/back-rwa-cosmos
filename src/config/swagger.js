@@ -113,6 +113,10 @@ const options = {
               type: 'string',
               description: 'Caminho do arquivo'
             },
+            image_data: { 
+              type: 'string',
+              description: 'Imagem codificada em base64 (max 10MB)'
+            },
             display_order: { 
               type: 'integer',
               description: 'Ordem de exibição'
