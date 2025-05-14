@@ -33,11 +33,11 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs, { explorer: 
 
 // Rotas públicas
 app.use('/api/auth', authRoutes);
+app.use('/api/rwa', rwaRoutes); // Rota de RWA pública agora
 
 // Rotas protegidas
 app.use('/api/users', jwtAuth, userRoutes);
 app.use('/api/admin', jwtAuth, adminRoutes);
-app.use('/api/rwa', jwtAuth, rwaRoutes);
 app.use('/api/rwa/images', rwaImageRoutes);
 app.use('/api/rwa/facilities', rwaFacilityRoutes);
 app.use('/api/rwa/nfts', rwaNftRoutes);

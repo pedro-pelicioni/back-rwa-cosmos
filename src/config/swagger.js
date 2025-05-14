@@ -275,11 +275,6 @@ const options = {
         },
       },
     },
-    security: [
-      {
-        bearerAuth: [],
-      },
-    ],
   },
   apis: ['./src/routes/*.js'], // arquivos que contêm as anotações
 };
