@@ -6,7 +6,6 @@ package-lock.json
 .env
 .env.local
 .env.*.local
-deploy-config.local.js
 
 # Logs
 logs

@@ -6,7 +6,6 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
-    "deploy": "node deploy.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -27,7 +26,6 @@
     "swagger-ui-express": "^5.0.1"
   },
   "devDependencies": {
-    "ftp-deploy": "^2.4.7",
     "nodemon": "^2.0.22"
   }
 }
