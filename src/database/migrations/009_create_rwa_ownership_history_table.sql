@@ -7,8 +7,7 @@ CREATE TABLE IF NOT EXISTS rwa_ownership_history (
     to_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     quantity INTEGER NOT NULL,
     transfer_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    tx_hash VARCHAR(255),
-    CONSTRAINT fk_token_rwa FOREIGN KEY (token_id, rwa_id) REFERENCES rwa_nft_tokens(id, rwa_id) ON DELETE SET NULL
+    tx_hash VARCHAR(255)
 );
 
 -- Índices para busca
