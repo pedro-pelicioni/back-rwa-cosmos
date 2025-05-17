@@ -1,3 +1,5 @@
+require('dotenv').config();
+
 /**
  * Controlador de autenticação via wallet
  */
@@ -6,7 +8,7 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const { serializeSignDoc, StdSignDoc } = require('@cosmjs/amino');
 const { fromBase64, fromBech32, toBase64 } = require('@cosmjs/encoding');
-const { sha256, ripemd160, Secp256k1, Secp256k1Signature } = require('@cosmjs/crypto');
+const { sha256, ripemd160, Secp256k1, Secp256k1Signature, Secp256k1Pubkey } = require('@cosmjs/crypto');
 
 /**
  * Converte um pubkey secp256k1 para um endereço Cosmos
@@ -21,99 +23,97 @@ function pubkeyToAddress(pubkey) {
 // Função para verificar assinaturas no formato ADR-36
 async function verifyADR36Signature(signerAddress, data, signature) {
   try {
-    console.log('Verificando assinatura:', { signerAddress, data });
-    console.log('Objeto de assinatura:', JSON.stringify(signature));
+    console.log('--- [Verificação de Assinatura] ---');
+    console.log('Signer address:', signerAddress);
+    console.log('Nonce recebido:', data);
     
-    // Verificar se a assinatura está no formato correto
-    if (!signature || !signature.signature || !signature.pub_key) {
-      console.error('Assinatura inválida: formato incorreto');
-      return false;
-    }
+    // Decodificar assinatura e pubkey
+    let decodedSignature = Buffer.from(signature.signature, 'base64');
+    const decodedPubkey = Buffer.from(signature.pub_key.value, 'base64');
+    console.log('Assinatura recebida (base64):', signature.signature);
+    console.log('Assinatura decodificada (tamanho):', decodedSignature.length);
+    console.log('Assinatura decodificada (hex):', decodedSignature.toString('hex'));
+    console.log('Chave pública recebida (base64):', signature.pub_key.value);
+    console.log('Chave pública decodificada (tamanho):', decodedPubkey.length);
+    console.log('Chave pública decodificada (hex):', decodedPubkey.toString('hex'));
 
-    const { signature: signatureBase64, pub_key: pubKey } = signature;
-
-    // Verificar se o pubkey está no formato correto
-    if (!pubKey || !pubKey.value) {
-      console.error('Assinatura inválida: pubkey em formato incorreto');
-      return false;
-    }
-
-    // Decodificar a assinatura e o pubkey
-    const signatureBytes = fromBase64(signatureBase64);
-    const pubkeyBytes = fromBase64(pubKey.value);
-
-    console.log('Assinatura decodificada:', signatureBytes.length);
-    console.log('Pubkey decodificado:', pubkeyBytes.length);
-
-    try {
-      // Extrair componentes r e s da assinatura
-      if (signatureBytes.length !== 64) {
-        console.error('Assinatura deve ter 64 bytes (formato r,s)');
+    // Se a assinatura não tiver 64 bytes, provavelmente está em DER, converter para raw
+    if (decodedSignature.length !== 64) {
+      try {
+        const secp256k1 = require('secp256k1');
+        decodedSignature = secp256k1.signatureImport(decodedSignature); // agora 64 bytes
+        console.log('Assinatura convertida de DER para raw (tamanho):', decodedSignature.length);
+        console.log('Assinatura convertida (hex):', decodedSignature.toString('hex'));
+      } catch (err) {
+        console.error('Erro ao importar assinatura DER para raw:', err);
         return false;
       }
-      
-      const r = signatureBytes.slice(0, 32);
-      const s = signatureBytes.slice(32, 64);
-      
-      // Criar objeto Secp256k1Signature
-      const secp256k1Signature = new Secp256k1Signature(r, s);
-      
-      // 1. Criar o documento de assinatura EXATAMENTE como o frontend
-      const signDoc = {
-        chain_id: "",
-        account_number: "0",
-        sequence: "0",
-        fee: {
-          amount: [],
-          gas: "0",
-        },
-        msgs: [
-          {
-            type: "sign/MsgSignData",
-            value: {
-              signer: signerAddress,
-              data: data,
-            },
-          },
-        ],
-        memo: "",
-      };
-      
-      // O front está usando a mensagem diretamente, não o nonce em base64
-      // Vamos mostrar todos os hashes para debug
-      const serialized = serializeSignDoc(signDoc);
-      console.log('Documento serializado:', Buffer.from(serialized).toString('hex'));
-      
-      // Hash do documento de assinatura (o que o Keplr realmente assina)
-      const docHash = sha256(serialized);
-      console.log('Hash do documento (correto):', Buffer.from(docHash).toString('hex'));
-      
-      // Verificar a assinatura com o hash do documento
-      const isValid = await Secp256k1.verifySignature(
+    }
+
+    // Extrair componentes r e s da assinatura
+    const r = decodedSignature.slice(0, 32);
+    const s = decodedSignature.slice(32, 64);
+    console.log('Componente r (hex):', r.toString('hex'));
+    console.log('Componente s (hex):', s.toString('hex'));
+
+    // Criar o documento de assinatura exatamente como o Keplr
+    const signDoc = {
+      chain_id: "",
+      account_number: "0",
+      sequence: "0",
+      fee: {
+        amount: [],
+        gas: "0"
+      },
+      msgs: [
+        {
+          type: "sign/MsgSignData",
+          value: {
+            signer: signerAddress,
+            data: Buffer.from(data).toString('base64')
+          }
+        }
+      ],
+      memo: ""
+    };
+
+    // Serializar o documento de assinatura
+    const serializedSignDoc = serializeSignDoc(signDoc);
+    console.log('Documento de assinatura serializado:', serializedSignDoc);
+
+    // Gerar hash do documento serializado
+    const hash = sha256(Buffer.from(serializedSignDoc));
+    console.log('Hash do documento (hex):', Buffer.from(hash).toString('hex'));
+
+    // Criar objeto de assinatura
+    const secp256k1Signature = new Secp256k1Signature(r, s);
+
+    // Validar assinatura usando Secp256k1.verifySignature
+    let isValid = false;
+    try {
+      isValid = await Secp256k1.verifySignature(
         secp256k1Signature,
-        docHash,
-        pubkeyBytes
+        Buffer.from(hash),
+        decodedPubkey
       );
-      
       console.log('Resultado da validação:', isValid);
-      
-      // Aceitar automaticamente se for um usuário admin para testes
-      const isAdmin = signerAddress === 'cosmos1yc8ye9egxdvawp64a2g8exej64ttq9eqr4v4hc';
-      // Aceitar automaticamente se for um usuário Noble para testes
-      const isNoble = signerAddress.startsWith('noble');
-      
-      if (isAdmin || isNoble) {
-        console.log(`BYPASS: Aceitando assinatura ${isNoble ? 'da Noble' : 'do admin'} sem validação`);
-        return true;
-      }
-      
-      return isValid;
-    } catch (error) {
-      console.error('Erro ao verificar assinatura:', error);
+    } catch (err) {
+      console.error('Erro ao validar assinatura:', err);
       return false;
     }
+
+    if (!isValid) {
+      console.log('--- [Falha na validação da assinatura] ---');
+      console.log('- Nonce original:', data);
+      console.log('- Documento de assinatura:', JSON.stringify(signDoc, null, 2));
+      console.log('- Hash:', Buffer.from(hash).toString('hex'));
+      console.log('- Assinatura:', signature.signature);
+      console.log('- Pubkey:', signature.pub_key.value);
+    }
+    console.log('--- [Fim da verificação de assinatura] ---');
+    return isValid;
   } catch (error) {
-    console.error('Erro ao validar assinatura:', error);
+    console.error('Erro ao verificar assinatura:', error);
     return false;
   }
 }
@@ -176,13 +176,14 @@ exports.walletLogin = async (req, res) => {
     
     // Validar assinatura
     try {
-      // Converter o nonce para base64
-      const nonceBase64 = Buffer.from(nonce, 'hex').toString('base64');
+      // Usar o nonce em hex diretamente (sem converter para base64)
+      console.log('Nonce em hex:', nonce);
       
       // Verificar se a assinatura é uma string JSON
       let signatureObj;
       try {
         signatureObj = typeof signature === 'string' ? JSON.parse(signature) : signature;
+        console.log('Assinatura parseada:', JSON.stringify(signatureObj, null, 2));
       } catch (e) {
         console.error('Erro ao parsear assinatura:', e);
         return res.status(401).json({ message: 'Formato de assinatura inválido' });
@@ -191,11 +192,15 @@ exports.walletLogin = async (req, res) => {
       // Validar a assinatura usando nossa implementação
       const isValid = await verifyADR36Signature(
         address,
-        nonceBase64,
+        nonce,
         signatureObj
       );
       
       if (!isValid) {
+        console.error('Assinatura inválida. Detalhes:');
+        console.error('- Nonce original:', nonce);
+        console.error('- Endereço:', address);
+        console.error('- Assinatura:', JSON.stringify(signatureObj, null, 2));
         return res.status(401).json({ message: 'Assinatura inválida' });
       }
     } catch (error) {
@@ -227,23 +232,25 @@ exports.walletLogin = async (req, res) => {
     
     const user = result.rows[0];
     
-    // Gerar token JWT
-    const token = jwt.sign(
-      { 
-        wallet_address: user.wallet_address,
-        id: user.id,
-        email: user.email
-      },
-      process.env.JWT_SECRET,
-      { expiresIn: '12h' }
-    );
+    // Debug para verificar o JWT_SECRET
+    console.log('JWT_SECRET:', process.env.JWT_SECRET);
+    
+    // Gerar token JWT com todos os campos obrigatórios
+    const payload = {
+      id: user.id,
+      address: user.wallet_address,
+      role: user.role || 'user', // Define role como 'user' se não existir
+      exp: Math.floor(Date.now() / 1000) + (60 * 60 * 24) // 24h de validade
+    };
+
+    const token = jwt.sign(payload, process.env.JWT_SECRET);
     
     res.json({
       token,
       user: {
         id: user.id,
-        email: user.email,
-        wallet_address: user.wallet_address
+        address: user.wallet_address,
+        role: user.role || 'user'
       }
     });
   } catch (error) {

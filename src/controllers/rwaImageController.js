@@ -84,7 +84,19 @@ class RWAImageController {
     static async getByRWAId(req, res) {
         try {
             const { rwa_id } = req.params;
-            const images = await RWAImage.getByRWAId(rwa_id);
+            let images = await RWAImage.getByRWAId(rwa_id);
+            // Validação do campo image_data
+            images = images.map(img => {
+                if (!img.image_data) {
+                    return { ...img, image_data: null };
+                }
+                // Aceita base64 que começa com o prefixo padrão de imagem
+                if (img.image_data.startsWith('data:image/')) {
+                    return img;
+                }
+                // Se não for, retorna null
+                return { ...img, image_data: null };
+            });
             res.json(images);
         } catch (error) {
             res.status(500).json({ error: error.message });
