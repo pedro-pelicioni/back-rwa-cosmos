@@ -2,11 +2,14 @@ const { Pool } = require('pg');
 require('dotenv').config();
 
 const pool = new Pool({
-    user: process.env.DB_USER,
-    host: process.env.DB_HOST,
-    database: process.env.DB_NAME,
-    password: process.env.DB_PASSWORD,
-    port: process.env.DB_PORT || 5432,
+    user: 'avnadmin',
+    host: 'imolatan-rwa-imolatam.g.aivencloud.com',
+    database: 'defaultdb',
+    password: 'AVNS_zw8vtVrsCTR_oC7ZVJR',
+    port: 13273,
+    ssl: {
+        rejectUnauthorized: false
+    }
 });
 
 module.exports = {
