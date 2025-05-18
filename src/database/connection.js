@@ -1,23 +1,24 @@
 const { Pool } = require('pg');
 const dotenv = require('dotenv');
-let neonConfig;
-
-// Tentativa de importar a configuração do Neon
-try {
-  neonConfig = require('./neon-config');
-} catch (e) {
-  console.log('Arquivo neon-config.js não encontrado, usando variáveis de ambiente');
-}
+const fs = require('fs');
+const path = require('path');
 
 dotenv.config();
 
+// Lê o certificado CA
+const ca = fs.readFileSync(path.join(__dirname, '../../ca.pem'), 'utf8');
+
 // Configuração da conexão com o PostgreSQL
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || 
-                   (neonConfig ? neonConfig.connectionString : 'postgresql://neondb_owner:npg_jue6LpGKXAJ4@ep-shiny-king-ac9i6o7y-pooler.sa-east-1.aws.neon.tech/neondb?sslmode=require'),
-  ssl: {
-    rejectUnauthorized: false // Necessário para conexões SSL com Neon
-  }
+  connectionString: process.env.NODE_ENV === 'production' 
+    ? 'postgres://avnadmin:AVNS_zw8vtVrsCTR_oC7ZVJR@imolatan-rwa-imolatam.g.aivencloud.com:13273/defaultdb'
+    : 'postgres://postgres:admin@localhost:5432/postgres',
+  ssl: process.env.NODE_ENV === 'production' 
+    ? {
+        ca,
+        rejectUnauthorized: true
+      }
+    : false
 });
 
 // Teste de conexão
@@ -26,7 +27,7 @@ pool.connect((err, client, release) => {
     console.error('Erro ao conectar ao banco de dados:', err);
     return;
   }
-  console.log('Conexão com banco de dados PostgreSQL Neon estabelecida com sucesso');
+  console.log('Conexão com banco de dados PostgreSQL estabelecida com sucesso');
   release();
 });
 
