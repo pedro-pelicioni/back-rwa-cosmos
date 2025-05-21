@@ -275,6 +275,108 @@ const options = {
         },
       },
     },
+    paths: {
+      '/api/rwa/tokens/sale/initiate': {
+        post: {
+          summary: 'Iniciar uma venda de token',
+          tags: ['Token Sales'],
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  required: ['token_id', 'quantity', 'price_per_token'],
+                  properties: {
+                    token_id: { type: 'integer' },
+                    quantity: { type: 'integer' },
+                    price_per_token: { type: 'number' }
+                  }
+                }
+              }
+            }
+          },
+          responses: {
+            201: { description: 'Venda iniciada com sucesso' },
+            403: { description: 'Sem permissão para vender este token' },
+            404: { description: 'Token não encontrado' },
+            500: { description: 'Erro ao iniciar venda' }
+          }
+        }
+      },
+      '/api/rwa/tokens/sale/confirm': {
+        post: {
+          summary: 'Confirmar uma venda de token',
+          tags: ['Token Sales'],
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  required: ['sale_id', 'tx_hash', 'signature'],
+                  properties: {
+                    sale_id: { type: 'integer' },
+                    tx_hash: { type: 'string' },
+                    signature: { type: 'string' }
+                  }
+                }
+              }
+            }
+          },
+          responses: {
+            200: { description: 'Venda confirmada com sucesso' },
+            400: { description: 'Venda não está pendente' },
+            404: { description: 'Venda não encontrada' },
+            500: { description: 'Erro ao confirmar venda' }
+          }
+        }
+      },
+      '/api/rwa/tokens/sale/cancel/{sale_id}': {
+        post: {
+          summary: 'Cancelar uma venda de token',
+          tags: ['Token Sales'],
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              in: 'path',
+              name: 'sale_id',
+              required: true,
+              schema: { type: 'integer' }
+            }
+          ],
+          responses: {
+            200: { description: 'Venda cancelada com sucesso' },
+            400: { description: 'Venda não pode ser cancelada' },
+            403: { description: 'Sem permissão para cancelar esta venda' },
+            404: { description: 'Venda não encontrada' },
+            500: { description: 'Erro ao cancelar venda' }
+          }
+        }
+      },
+      '/api/rwa/tokens/sale/{sale_id}': {
+        get: {
+          summary: 'Obter uma venda de token por ID',
+          tags: ['Token Sales'],
+          security: [{ bearerAuth: [] }],
+          parameters: [
+            {
+              in: 'path',
+              name: 'sale_id',
+              required: true,
+              schema: { type: 'integer' }
+            }
+          ],
+          responses: {
+            200: { description: 'Venda encontrada com sucesso' },
+            404: { description: 'Venda não encontrada' },
+            500: { description: 'Erro ao obter venda' }
+          }
+        }
+      }
+    }
   },
   apis: ['./src/routes/*.js'], // arquivos que contêm as anotações
 };

@@ -23,27 +23,36 @@ function pubkeyToAddress(pubkey) {
 // Função para verificar assinaturas no formato ADR-36
 async function verifyADR36Signature(signerAddress, data, signature) {
   try {
-    console.log('--- [Verificação de Assinatura] ---');
-    console.log('Signer address:', signerAddress);
-    console.log('Nonce recebido:', data);
+    console.log('\n=== [INÍCIO DA VERIFICAÇÃO DE ASSINATURA] ===');
+    console.log('1. Dados recebidos:');
+    console.log('- Signer address:', signerAddress);
+    console.log('- Nonce recebido (hex):', data);
     
     // Decodificar assinatura e pubkey
     let decodedSignature = Buffer.from(signature.signature, 'base64');
     const decodedPubkey = Buffer.from(signature.pub_key.value, 'base64');
-    console.log('Assinatura recebida (base64):', signature.signature);
-    console.log('Assinatura decodificada (tamanho):', decodedSignature.length);
-    console.log('Assinatura decodificada (hex):', decodedSignature.toString('hex'));
-    console.log('Chave pública recebida (base64):', signature.pub_key.value);
-    console.log('Chave pública decodificada (tamanho):', decodedPubkey.length);
-    console.log('Chave pública decodificada (hex):', decodedPubkey.toString('hex'));
+    
+    console.log('\n2. Detalhes da assinatura:');
+    console.log('- Assinatura recebida (base64):', signature.signature);
+    console.log('- Assinatura decodificada (tamanho):', decodedSignature.length);
+    console.log('- Assinatura decodificada (hex):', decodedSignature.toString('hex'));
+    console.log('- Assinatura decodificada (bytes):', Array.from(decodedSignature));
+    
+    console.log('\n3. Detalhes da chave pública:');
+    console.log('- Chave pública recebida (base64):', signature.pub_key.value);
+    console.log('- Chave pública decodificada (tamanho):', decodedPubkey.length);
+    console.log('- Chave pública decodificada (hex):', decodedPubkey.toString('hex'));
+    console.log('- Chave pública decodificada (bytes):', Array.from(decodedPubkey));
 
     // Se a assinatura não tiver 64 bytes, provavelmente está em DER, converter para raw
     if (decodedSignature.length !== 64) {
       try {
         const secp256k1 = require('secp256k1');
-        decodedSignature = secp256k1.signatureImport(decodedSignature); // agora 64 bytes
-        console.log('Assinatura convertida de DER para raw (tamanho):', decodedSignature.length);
-        console.log('Assinatura convertida (hex):', decodedSignature.toString('hex'));
+        decodedSignature = secp256k1.signatureImport(decodedSignature);
+        console.log('\n4. Conversão de assinatura DER para raw:');
+        console.log('- Nova assinatura (tamanho):', decodedSignature.length);
+        console.log('- Nova assinatura (hex):', decodedSignature.toString('hex'));
+        console.log('- Nova assinatura (bytes):', Array.from(decodedSignature));
       } catch (err) {
         console.error('Erro ao importar assinatura DER para raw:', err);
         return false;
@@ -53,10 +62,17 @@ async function verifyADR36Signature(signerAddress, data, signature) {
     // Extrair componentes r e s da assinatura
     const r = decodedSignature.slice(0, 32);
     const s = decodedSignature.slice(32, 64);
-    console.log('Componente r (hex):', r.toString('hex'));
-    console.log('Componente s (hex):', s.toString('hex'));
+    console.log('\n5. Componentes da assinatura:');
+    console.log('- Componente r (hex):', r.toString('hex'));
+    console.log('- Componente r (bytes):', Array.from(r));
+    console.log('- Componente s (hex):', s.toString('hex'));
+    console.log('- Componente s (bytes):', Array.from(s));
 
-    // Criar o documento de assinatura exatamente como o Keplr
+    // Criar a mensagem formatada como no frontend
+    const message = `Autenticação RWA - Nonce: ${data}`;
+    const messageBase64 = Buffer.from(message).toString('base64');
+
+    // Criar o documento de assinatura no formato ADR-36
     const signDoc = {
       chain_id: "",
       account_number: "0",
@@ -70,47 +86,65 @@ async function verifyADR36Signature(signerAddress, data, signature) {
           type: "sign/MsgSignData",
           value: {
             signer: signerAddress,
-            data: Buffer.from(data).toString('base64')
+            data: messageBase64 // Usar a mensagem formatada em base64
           }
         }
       ],
       memo: ""
     };
 
+    console.log('\n6. Documento de assinatura:');
+    console.log('- Documento completo:', JSON.stringify(signDoc, null, 2));
+    console.log('- Tipo da mensagem:', signDoc.msgs[0].type);
+    console.log('- Signer:', signDoc.msgs[0].value.signer);
+    console.log('- Mensagem original:', message);
+    console.log('- Mensagem em base64:', messageBase64);
+
     // Serializar o documento de assinatura
     const serializedSignDoc = serializeSignDoc(signDoc);
-    console.log('Documento de assinatura serializado:', serializedSignDoc);
+    console.log('\n7. Documento serializado:');
+    console.log('- Serializado (bytes):', Array.from(serializedSignDoc));
+    console.log('- Serializado (hex):', Buffer.from(serializedSignDoc).toString('hex'));
 
     // Gerar hash do documento serializado
     const hash = sha256(Buffer.from(serializedSignDoc));
-    console.log('Hash do documento (hex):', Buffer.from(hash).toString('hex'));
+    console.log('\n8. Hash do documento:');
+    console.log('- Hash (bytes):', Array.from(hash));
+    console.log('- Hash (hex):', Buffer.from(hash).toString('hex'));
 
     // Criar objeto de assinatura
     const secp256k1Signature = new Secp256k1Signature(r, s);
+    console.log('\n9. Objeto de assinatura:');
+    console.log('- R (hex):', r.toString('hex'));
+    console.log('- S (hex):', s.toString('hex'));
 
-    // Validar assinatura usando Secp256k1.verifySignature
+    // Validar assinatura
     let isValid = false;
     try {
+      console.log('\n10. Tentativa de validação:');
       isValid = await Secp256k1.verifySignature(
         secp256k1Signature,
-        Buffer.from(hash),
+        hash,
         decodedPubkey
       );
-      console.log('Resultado da validação:', isValid);
+      console.log('- Resultado da validação:', isValid);
     } catch (err) {
-      console.error('Erro ao validar assinatura:', err);
+      console.error('- Erro ao validar assinatura:', err);
       return false;
     }
 
     if (!isValid) {
-      console.log('--- [Falha na validação da assinatura] ---');
+      console.log('\n=== [FALHA NA VALIDAÇÃO] ===');
+      console.log('Detalhes da falha:');
       console.log('- Nonce original:', data);
+      console.log('- Mensagem formatada:', message);
       console.log('- Documento de assinatura:', JSON.stringify(signDoc, null, 2));
       console.log('- Hash:', Buffer.from(hash).toString('hex'));
       console.log('- Assinatura:', signature.signature);
       console.log('- Pubkey:', signature.pub_key.value);
     }
-    console.log('--- [Fim da verificação de assinatura] ---');
+
+    console.log('\n=== [FIM DA VERIFICAÇÃO DE ASSINATURA] ===\n');
     return isValid;
   } catch (error) {
     console.error('Erro ao verificar assinatura:', error);

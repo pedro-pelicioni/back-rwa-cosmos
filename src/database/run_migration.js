@@ -1,43 +1,23 @@
-const { Pool } = require('pg');
-const dotenv = require('dotenv');
+const { pool } = require('./connection');
 const fs = require('fs');
 const path = require('path');
 
-dotenv.config();
-
-// Configuração da conexão com o PostgreSQL
-const pool = new Pool({
-  user: process.env.POSTGRES_USER || 'postgres',
-  host: process.env.POSTGRES_HOST || 'localhost',
-  database: process.env.POSTGRES_DB || 'postgres',
-  password: process.env.POSTGRES_PASSWORD || 'admin',
-  port: process.env.POSTGRES_PORT || 5432,
-});
-
-async function addImageDataColumn() {
-  const client = await pool.connect();
+async function runMigration() {
   try {
-    console.log('Adicionando coluna image_data à tabela rwa_images...');
+    console.log('Iniciando migração...');
     
-    // SQL para adicionar a coluna
-    const sql = `ALTER TABLE rwa_images ADD COLUMN IF NOT EXISTS image_data TEXT;`;
+    // Ler o arquivo de migração
+    const migrationPath = path.join(__dirname, 'migrations', '012_add_timestamps_to_token_sales.sql');
+    const migrationSQL = fs.readFileSync(migrationPath, 'utf8');
     
-    await client.query(sql);
-    console.log('Coluna image_data adicionada com sucesso!');
+    // Executar a migração
+    await pool.query(migrationSQL);
+    console.log('Migração concluída com sucesso!');
   } catch (error) {
-    console.error('Erro ao adicionar coluna image_data:', error);
+    console.error('Erro ao executar migração:', error);
   } finally {
-    client.release();
+    await pool.end();
   }
 }
 
-// Executa a função
-addImageDataColumn()
-  .then(() => {
-    console.log('Migração concluída.');
-    process.exit(0);
-  })
-  .catch(error => {
-    console.error('Erro durante a migração:', error);
-    process.exit(1);
-  }); 
+runMigration(); 

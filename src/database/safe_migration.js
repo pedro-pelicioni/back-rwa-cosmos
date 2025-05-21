@@ -170,6 +170,31 @@ async function safeMigration() {
     `);
     console.log('Tabela rwa_ownership_history verificada/criada.');
 
+    // 9. rwa_token_sales
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS rwa_token_sales (
+        id SERIAL PRIMARY KEY,
+        token_id INTEGER NOT NULL REFERENCES rwa_nft_tokens(id),
+        seller_id INTEGER NOT NULL REFERENCES users(id),
+        buyer_id INTEGER REFERENCES users(id),
+        quantity INTEGER NOT NULL CHECK (quantity > 0),
+        price_per_token DECIMAL(20,2) NOT NULL CHECK (price_per_token > 0),
+        transaction_hash VARCHAR(255),
+        signature TEXT,
+        status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'completed', 'cancelled')),
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        completed_at TIMESTAMP WITH TIME ZONE,
+        cancelled_at TIMESTAMP WITH TIME ZONE
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_rwa_token_sales_token_id ON rwa_token_sales(token_id);
+      CREATE INDEX IF NOT EXISTS idx_rwa_token_sales_seller_id ON rwa_token_sales(seller_id);
+      CREATE INDEX IF NOT EXISTS idx_rwa_token_sales_buyer_id ON rwa_token_sales(buyer_id);
+      CREATE INDEX IF NOT EXISTS idx_rwa_token_sales_status ON rwa_token_sales(status);
+    `);
+    console.log('Tabela rwa_token_sales verificada/criada.');
+
     console.log('Migration segura concluída!');
   } catch (err) {
     console.error('Erro na migration segura:', err);

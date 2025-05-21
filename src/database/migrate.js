@@ -1,34 +1,56 @@
-const fs = require('fs');
+const fs = require('fs').promises;
 const path = require('path');
 const { pool } = require('./connection');
 
-async function runMigration() {
-    try {
-        console.log('Iniciando migração das tabelas...');
-        
-        // Lê o arquivo SQL da tabela de usuários
-        const usersSqlFile = path.join(__dirname, 'migrations', 'create_users_table.sql');
-        const usersSql = fs.readFileSync(usersSqlFile, 'utf8');
+async function runMigrations() {
+  try {
+    // Criar tabela de migrações se não existir
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS migrations (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL UNIQUE,
+        executed_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
 
-        // Executa o SQL para criar tabela de usuários
-        await pool.query(usersSql);
-        console.log('Tabela de usuários criada ou atualizada com sucesso!');
+    // Ler diretório de migrações
+    const migrationsDir = path.join(__dirname, 'migrations');
+    const files = await fs.readdir(migrationsDir);
+    const migrationFiles = files.filter(f => f.endsWith('.js')).sort();
+
+    // Executar migrações pendentes
+    for (const file of migrationFiles) {
+      const migrationName = path.basename(file, '.js');
+      
+      // Verificar se migração já foi executada
+      const { rows } = await pool.query(
+        'SELECT * FROM migrations WHERE name = $1',
+        [migrationName]
+      );
+
+      if (rows.length === 0) {
+        console.log(`Executando migração: ${migrationName}`);
+        const migration = require(path.join(migrationsDir, file));
         
-        // Lê o arquivo SQL da tabela de KYC
-        const kycSqlFile = path.join(__dirname, 'migrations', 'create_kyc_table.sql');
-        const kycSql = fs.readFileSync(kycSqlFile, 'utf8');
+        await migration.up();
         
-        // Executa o SQL para criar tabela de KYC
-        await pool.query(kycSql);
-        console.log('Tabela de KYC criada ou atualizada com sucesso!');
+        // Registrar migração executada
+        await pool.query(
+          'INSERT INTO migrations (name) VALUES ($1)',
+          [migrationName]
+        );
         
-        console.log('Todas as migrações foram executadas com sucesso!');
-    } catch (error) {
-        console.error('Erro ao executar migração:', error.message);
-    } finally {
-        pool.end();
+        console.log(`Migração ${migrationName} executada com sucesso`);
+      }
     }
+
+    console.log('Todas as migrações foram executadas com sucesso');
+  } catch (error) {
+    console.error('Erro ao executar migrações:', error);
+    process.exit(1);
+  } finally {
+    await pool.end();
+  }
 }
 
-// Executa a migração
-runMigration(); 
+runMigrations(); 

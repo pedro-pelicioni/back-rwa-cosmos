@@ -49,7 +49,13 @@ class RWAController {
 
     static async getById(req, res) {
         try {
-            const rwa = await RWA.findById(req.params.id);
+            const id = parseInt(req.params.id);
+            
+            if (isNaN(id)) {
+                return res.status(400).json({ error: 'ID inválido' });
+            }
+
+            const rwa = await RWA.findById(id);
             if (!rwa) {
                 return res.status(404).json({ error: 'RWA não encontrado' });
             }

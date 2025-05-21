@@ -7,13 +7,13 @@ class RWANFTController {
       const { rwa_id, token_identifier, owner_user_id, metadata_uri } = req.body;
 
       // Verifica se o RWA existe
-      const rwa = await RWA.getById(rwa_id);
+      const rwa = await RWA.findById(rwa_id);
       if (!rwa) {
         return res.status(404).json({ message: 'RWA não encontrado' });
       }
 
       // Verifica se o usuário tem permissão para criar tokens para este RWA
-      if (req.user.id !== rwa.owner_id && !req.user.is_admin) {
+      if (req.user.id !== rwa.user_id && !req.user.is_admin) {
         return res.status(403).json({ message: 'Sem permissão para criar tokens para este RWA' });
       }
 
@@ -87,22 +87,29 @@ class RWANFTController {
 
   static async delete(req, res) {
     try {
-      const token = await RWANFTToken.getById(req.params.id);
+      const { id } = req.params;
+      const token = await RWANFTToken.getById(id);
+      
       if (!token) {
-        return res.status(404).json({ message: 'Token NFT não encontrado' });
+        return res.status(404).json({ error: 'Token não encontrado' });
       }
 
-      // Verifica se o usuário tem permissão para deletar o token
-      const rwa = await RWA.getById(token.rwa_id);
-      if (req.user.id !== rwa.owner_id && !req.user.is_admin) {
-        return res.status(403).json({ message: 'Sem permissão para deletar este token' });
+      // Verificar se o usuário é o dono do token
+      if (token.owner_user_id !== req.user.id && !req.user.is_admin) {
+        return res.status(403).json({ error: 'Sem permissão para deletar este token' });
       }
 
-      await RWANFTToken.delete(req.params.id);
+      // Verificar se o RWA existe
+      const rwa = await RWA.findById(token.rwa_id);
+      if (!rwa) {
+        return res.status(404).json({ error: 'RWA não encontrado' });
+      }
+
+      await RWANFTToken.delete(id);
       res.status(204).send();
     } catch (error) {
       console.error('Erro ao deletar token NFT:', error);
-      res.status(500).json({ message: 'Erro ao deletar token NFT' });
+      res.status(500).json({ error: 'Erro ao deletar token NFT' });
     }
   }
 }

@@ -11,6 +11,7 @@ const rwaRoutes = require('./routes/rwaRoutes');
 const rwaImageRoutes = require('./routes/rwaImageRoutes');
 const rwaFacilityRoutes = require('./routes/rwaFacilityRoutes');
 const rwaNftRoutes = require('./routes/rwaNftRoutes');
+const rwaTokenSaleRoutes = require('./routes/rwaTokenSaleRoutes');
 const rwaOwnershipHistoryRoutes = require('./routes/rwaOwnershipHistoryRoutes');
 const jwtAuth = require('./middleware/jwtAuth');
 const http = require('http');
@@ -39,9 +40,10 @@ app.use('/api/rwa', rwaRoutes); // Rota de RWA pública agora
 app.use('/api/users', jwtAuth, userRoutes);
 app.use('/api/admin', jwtAuth, adminRoutes);
 app.use('/api/rwa/images', rwaImageRoutes);
-app.use('/api/rwa/facilities', rwaFacilityRoutes);
+app.use('/api/rwa/facilities', jwtAuth, rwaFacilityRoutes);
 app.use('/api/rwa/nfts', rwaNftRoutes);
-app.use('/api/rwa/ownership-history', rwaOwnershipHistoryRoutes);
+app.use('/api/rwa/tokens/sale', jwtAuth, rwaTokenSaleRoutes);
+app.use('/api/rwa/ownership-history', jwtAuth, rwaOwnershipHistoryRoutes);
 
 // Rota de saúde
 app.get('/health', (req, res) => {
