@@ -35,10 +35,45 @@ router.get('/me', walletAuth, usersController.getMe);
 
 /**
  * @swagger
- * /api/users/kyc:
+ * /api/users/kyc/basic:
  *   post:
- *     summary: Enviar documentos KYC
- *     description: Envia documentos para verificação KYC
+ *     summary: Enviar dados básicos para KYC (etapa 1)
+ *     description: Envia nome e CPF para iniciar o processo de KYC
+ *     tags: [Usuários]
+ *     security:
+ *       - walletAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - nome
+ *               - cpf
+ *             properties:
+ *               nome:
+ *                 type: string
+ *               cpf:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Dados básicos enviados com sucesso
+ *       400:
+ *         description: Dados inválidos
+ *       401:
+ *         description: Não autorizado
+ *       500:
+ *         description: Erro interno do servidor
+ */
+router.post('/kyc/basic', walletAuth, usersController.submitKycBasic);
+
+/**
+ * @swagger
+ * /api/users/kyc/documents:
+ *   post:
+ *     summary: Enviar documentos para KYC (etapa 2)
+ *     description: Envia documentos e selfies para completar o KYC
  *     tags: [Usuários]
  *     security:
  *       - walletAuth: []
@@ -49,10 +84,6 @@ router.get('/me', walletAuth, usersController.getMe);
  *           schema:
  *             type: object
  *             properties:
- *               nome:
- *                 type: string
- *               cpf:
- *                 type: string
  *               documento_frente:
  *                 type: string
  *                 format: binary
@@ -69,20 +100,20 @@ router.get('/me', walletAuth, usersController.getMe);
  *       200:
  *         description: Documentos enviados com sucesso
  *       400:
- *         description: Dados inválidos
+ *         description: Dados inválidos ou etapa 1 não concluída
  *       401:
  *         description: Não autorizado
  *       500:
  *         description: Erro interno do servidor
  */
-router.post('/kyc', walletAuth, usersController.submitKyc);
+router.post('/kyc/documents', walletAuth, usersController.submitKycDocuments);
 
 /**
  * @swagger
  * /api/users/kyc:
  *   get:
  *     summary: Obter status KYC
- *     description: Retorna o status da verificação KYC do usuário
+ *     description: Retorna o status e etapa atual da verificação KYC do usuário
  *     tags: [Usuários]
  *     security:
  *       - walletAuth: []
@@ -94,11 +125,28 @@ router.post('/kyc', walletAuth, usersController.submitKyc);
  *             schema:
  *               type: object
  *               properties:
+ *                 id:
+ *                   type: integer
+ *                 nome:
+ *                   type: string
+ *                 cpf:
+ *                   type: string
  *                 status:
  *                   type: string
  *                   enum: [pendente, aprovado, rejeitado]
+ *                 etapa:
+ *                   type: string
+ *                   enum: [dados_basicos, documentos]
+ *                 created_at:
+ *                   type: string
+ *                   format: date-time
+ *                 updated_at:
+ *                   type: string
+ *                   format: date-time
  *       401:
  *         description: Não autorizado
+ *       404:
+ *         description: KYC não encontrado
  *       500:
  *         description: Erro interno do servidor
  */

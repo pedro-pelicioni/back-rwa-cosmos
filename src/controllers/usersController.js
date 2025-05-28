@@ -38,22 +38,81 @@ exports.getMe = async (req, res) => {
   }
 };
 
-// Enviar documentos para KYC
-exports.submitKyc = async (req, res) => {
+// Enviar dados básicos para KYC (etapa 1)
+exports.submitKycBasic = async (req, res) => {
   try {
     const { nome, cpf } = req.body;
     const walletAddress = req.user.wallet_address;
 
     // Validar campos obrigatórios
-    if (!nome || !cpf || !req.files) {
-      return res.status(400).json({ message: 'Todos os campos são obrigatórios' });
+    if (!nome || !cpf) {
+      return res.status(400).json({ message: 'Nome e CPF são obrigatórios' });
     }
 
-    const { documento_frente, documento_verso, selfie_1, selfie_2 } = req.files;
+    // Verificar se já existe KYC para este usuário
+    const existingKyc = await pool.query(
+      'SELECT id, status FROM kyc WHERE wallet_address = $1',
+      [walletAddress]
+    );
 
-    // Validar arquivos
-    if (!documento_frente || !documento_verso || !selfie_1 || !selfie_2) {
-      return res.status(400).json({ message: 'Todos os documentos são obrigatórios' });
+    if (existingKyc.rows.length > 0) {
+      const kyc = existingKyc.rows[0];
+      
+      // Se já tem documentos enviados, retorna erro
+      if (kyc.documento_frente_cid) {
+        return res.status(400).json({ 
+          message: 'KYC já iniciado. Por favor, envie os documentos.',
+          kyc_id: kyc.id
+        });
+      }
+      
+      // Se só tem dados básicos, atualiza
+      const result = await pool.query(
+        `UPDATE kyc 
+         SET nome = $1, cpf = $2, updated_at = CURRENT_TIMESTAMP
+         WHERE id = $3
+         RETURNING id`,
+        [nome, cpf, kyc.id]
+      );
+      
+      return res.json({
+        message: 'Dados básicos atualizados com sucesso',
+        kyc_id: result.rows[0].id
+      });
+    }
+
+    // Criar novo registro de KYC com dados básicos
+    const result = await pool.query(
+      `INSERT INTO kyc (
+        wallet_address, nome, cpf, status
+      ) VALUES ($1, $2, $3, $4) RETURNING id`,
+      [walletAddress, nome, cpf, 'pendente']
+    );
+
+    res.status(201).json({
+      message: 'Dados básicos enviados com sucesso',
+      kyc_id: result.rows[0].id
+    });
+  } catch (error) {
+    console.error('Erro ao enviar dados básicos do KYC:', error);
+    res.status(500).json({ message: 'Erro ao enviar dados básicos do KYC' });
+  }
+};
+
+// Enviar documentos para KYC (etapa 2)
+exports.submitKycDocuments = async (req, res) => {
+  try {
+    const walletAddress = req.user.wallet_address;
+
+    // Verificar se arquivos foram enviados
+    if (!req.files || 
+        !req.files.documento_frente || 
+        !req.files.documento_verso || 
+        !req.files.selfie_1 || 
+        !req.files.selfie_2) {
+      return res.status(400).json({ 
+        message: 'Todos os documentos são obrigatórios: frente e verso do documento e duas selfies' 
+      });
     }
 
     // Verificar se já existe KYC para este usuário
@@ -62,27 +121,37 @@ exports.submitKyc = async (req, res) => {
       [walletAddress]
     );
 
-    if (existingKyc.rows.length > 0) {
-      return res.status(400).json({ message: 'Usuário já possui KYC enviado' });
+    if (existingKyc.rows.length === 0) {
+      return res.status(400).json({ 
+        message: 'Por favor, envie primeiro os dados básicos (nome e CPF)' 
+      });
     }
 
-    // Salvar documentos e obter CIDs (simulado por enquanto)
+    const kycId = existingKyc.rows[0].id;
+
+    // Simular upload para IPFS (em produção, implementar upload real)
     const documento_frente_cid = `cid_doc_frente_${Date.now()}`;
     const documento_verso_cid = `cid_doc_verso_${Date.now()}`;
     const selfie_1_cid = `cid_selfie1_${Date.now()}`;
     const selfie_2_cid = `cid_selfie2_${Date.now()}`;
 
-    // Inserir KYC no banco
+    // Atualizar KYC com os documentos
     const result = await pool.query(
-      `INSERT INTO kyc (
-        wallet_address, nome, cpf,
-        documento_frente_cid, documento_verso_cid,
-        selfie_1_cid, selfie_2_cid, status
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
+      `UPDATE kyc SET
+        documento_frente_cid = $1,
+        documento_verso_cid = $2,
+        selfie_1_cid = $3,
+        selfie_2_cid = $4,
+        status = 'pendente',
+        updated_at = CURRENT_TIMESTAMP
+       WHERE id = $5
+       RETURNING id`,
       [
-        walletAddress, nome, cpf,
-        documento_frente_cid, documento_verso_cid,
-        selfie_1_cid, selfie_2_cid, 'pendente'
+        documento_frente_cid,
+        documento_verso_cid,
+        selfie_1_cid,
+        selfie_2_cid,
+        kycId
       ]
     );
 
@@ -102,7 +171,9 @@ exports.getKyc = async (req, res) => {
     const walletAddress = req.user.wallet_address;
 
     const result = await pool.query(
-      `SELECT id, nome, cpf, status, created_at
+      `SELECT id, nome, cpf, status, created_at, updated_at,
+              documento_frente_cid, documento_verso_cid,
+              selfie_1_cid, selfie_2_cid
        FROM kyc WHERE wallet_address = $1`,
       [walletAddress]
     );
@@ -111,7 +182,16 @@ exports.getKyc = async (req, res) => {
       return res.status(404).json({ message: 'KYC não encontrado' });
     }
 
-    res.json(result.rows[0]);
+    const kyc = result.rows[0];
+    
+    // Determinar a etapa atual do KYC
+    if (!kyc.documento_frente_cid) {
+      kyc.etapa = 'dados_basicos';
+    } else {
+      kyc.etapa = 'documentos';
+    }
+
+    res.json(kyc);
   } catch (error) {
     console.error('Erro ao buscar status do KYC:', error);
     res.status(500).json({ message: 'Erro ao buscar status do KYC' });
