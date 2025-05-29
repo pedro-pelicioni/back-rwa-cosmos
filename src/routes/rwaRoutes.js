@@ -350,4 +350,13 @@ router.put('/:id', jwtAuth, RWAController.update);
  */
 router.delete('/:id', jwtAuth, RWAController.delete);
 
+console.log('foi 1');
+// Rotas protegidas
+//router.get('/tokens/owner/:userId', jwtAuth, RWAController.getTokensByOwner);
+
+console.log('foi 2');
+router.get('/user/:userId', jwtAuth, RWAController.getUserData);
+
+console.log('foi 3');
+
 module.exports = router; 

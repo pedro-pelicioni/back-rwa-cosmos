@@ -1,6 +1,71 @@
-const db = require('../config/database');
+const { Model } = require('objection');
+const db = require('../database/knex');
 
-class RWATokenSale {
+// Conectar o Model ao Knex
+Model.knex(db);
+
+class RWATokenSale extends Model {
+  static get tableName() {
+    return 'rwa_token_sales';
+  }
+
+  static get jsonSchema() {
+    return {
+      type: 'object',
+      required: ['token_id', 'seller_id', 'quantity', 'price_per_token', 'status'],
+      properties: {
+        id: { type: 'integer' },
+        token_id: { type: 'integer' },
+        seller_id: { type: 'integer' },
+        buyer_id: { type: ['integer', 'null'] },
+        quantity: { type: 'integer' },
+        price_per_token: { type: 'number' },
+        total_price: { type: 'number' },
+        status: { 
+          type: 'string',
+          enum: ['pending', 'completed', 'cancelled']
+        },
+        transaction_hash: { type: ['string', 'null'] },
+        signature: { type: ['string', 'null'] },
+        expires_at: { type: 'string', format: 'date-time' },
+        created_at: { type: 'string', format: 'date-time' },
+        updated_at: { type: 'string', format: 'date-time' }
+      }
+    };
+  }
+
+  static get relationMappings() {
+    const Token = require('./RWANFTToken');
+    const User = require('./User');
+
+    return {
+      token: {
+        relation: Model.BelongsToOneRelation,
+        modelClass: Token,
+        join: {
+          from: 'rwa_token_sales.token_id',
+          to: 'rwa_nft_tokens.id'
+        }
+      },
+      seller: {
+        relation: Model.BelongsToOneRelation,
+        modelClass: User,
+        join: {
+          from: 'rwa_token_sales.seller_id',
+          to: 'users.id'
+        }
+      },
+      buyer: {
+        relation: Model.BelongsToOneRelation,
+        modelClass: User,
+        join: {
+          from: 'rwa_token_sales.buyer_id',
+          to: 'users.id'
+        }
+      }
+    };
+  }
+
   static async initiate(saleData) {
     const { token_id, seller_id, quantity, price_per_token } = saleData;
     const query = `

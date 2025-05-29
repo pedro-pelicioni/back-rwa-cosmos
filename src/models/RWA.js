@@ -1,192 +1,288 @@
+const { Model } = require('objection');
+const db = require('../database/knex');
 const { pool } = require('../database/connection');
 
-class RWA {
+// Conectar o Model ao Knex
+Model.knex(db);
+
+class RWA extends Model {
+    static get tableName() {
+        return 'rwa';
+    }
+
+    static get jsonSchema() {
+        return {
+            type: 'object',
+            required: ['name', 'gps_coordinates', 'city', 'country', 'current_value', 'total_tokens', 'user_id'],
+            properties: {
+                id: { type: 'integer' },
+                user_id: { type: 'integer', minimum: 1 },
+                name: { type: 'string' },
+                gps_coordinates: { type: 'string' },
+                city: { type: 'string' },
+                country: { type: 'string' },
+                description: { type: ['string', 'null'] },
+                current_value: { type: 'number', minimum: 0 },
+                total_tokens: { type: 'integer', minimum: 1 },
+                year_built: { type: ['integer', 'null'] },
+                size_m2: { type: ['number', 'null'] },
+                status: { 
+                    type: 'string',
+                    enum: ['active', 'inactive', 'sold']
+                },
+                geometry: { type: ['object', 'null'] },
+                created_at: { type: 'string', format: 'date-time' },
+                updated_at: { type: 'string', format: 'date-time' }
+            }
+        };
+    }
+
+    static get relationMappings() {
+        const User = require('./User');
+        const RWANFTToken = require('./RWANFTToken');
+        const RWAImage = require('./RWAImage');
+        const RWAFacility = require('./RWAFacility');
+
+        return {
+            owner: {
+                relation: Model.BelongsToOneRelation,
+                modelClass: User,
+                join: {
+                    from: 'rwa.user_id',
+                    to: 'users.id'
+                }
+            },
+            tokens: {
+                relation: Model.HasManyRelation,
+                modelClass: RWANFTToken,
+                join: {
+                    from: 'rwa.id',
+                    to: 'rwa_nft_tokens.rwa_id'
+                }
+            },
+            images: {
+                relation: Model.HasManyRelation,
+                modelClass: RWAImage,
+                join: {
+                    from: 'rwa.id',
+                    to: 'rwa_images.rwa_id'
+                }
+            },
+            facilities: {
+                relation: Model.HasManyRelation,
+                modelClass: RWAFacility,
+                join: {
+                    from: 'rwa.id',
+                    to: 'rwa_facilities.rwa_id'
+                }
+            }
+        };
+    }
+
     static async create(rwaData) {
-        const {
-            userId,
-            name,
-            gpsCoordinates,
-            city,
-            country,
-            description,
-            currentValue,
-            totalTokens,
-            yearBuilt,
-            sizeM2,
-            geometry
-        } = rwaData;
-
-        const query = `
-            INSERT INTO rwa (
-                user_id, name, gps_coordinates, city, country, description,
-                current_value, total_tokens, year_built, size_m2
-            )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-            RETURNING *
-        `;
-
-        const values = [
-            userId, name, gpsCoordinates, city, country, description,
-            currentValue, totalTokens, yearBuilt, sizeM2
-        ];
-
         try {
-            const result = await pool.query(query, values);
-            return result.rows[0];
+            // Garantir que os campos numéricos sejam números e tenham valores válidos
+            const data = {
+                ...rwaData,
+                current_value: Number(rwaData.current_value || 0),
+                total_tokens: Number(rwaData.total_tokens || 1),
+                user_id: Number(rwaData.user_id),
+                year_built: rwaData.year_built ? Number(rwaData.year_built) : null,
+                size_m2: rwaData.size_m2 ? Number(rwaData.size_m2) : null
+            };
+
+            // Validar campos obrigatórios
+            if (!data.user_id || data.user_id <= 0) {
+                throw new Error('user_id é obrigatório e deve ser maior que zero');
+            }
+
+            if (data.current_value < 0) {
+                throw new Error('current_value deve ser maior ou igual a zero');
+            }
+
+            if (data.total_tokens < 1) {
+                throw new Error('total_tokens deve ser maior que zero');
+            }
+
+            const rwa = await RWA.query().insert(data);
+            return await RWA.query()
+                .findById(rwa.id)
+                .withGraphFetched('[owner, images, facilities]');
         } catch (error) {
             throw new Error(`Erro ao criar RWA: ${error.message}`);
         }
     }
 
     static async findById(id) {
-        const query = `
-            SELECT r.*, 
-                   u.email as owner_email
-            FROM rwa r
-            JOIN users u ON r.user_id = u.id
-            WHERE r.id = $1
-        `;
-
         try {
-            const result = await pool.query(query, [id]);
-            return result.rows[0];
+            const rwa = await RWA.query()
+                .findById(id)
+                .withGraphFetched('[owner, images, facilities]');
+            
+            if (!rwa) return null;
+
+            // Garantir que os campos numéricos sejam números e tenham valores válidos
+            return {
+                ...rwa,
+                current_value: Number(rwa.current_value || 0),
+                total_tokens: Number(rwa.total_tokens || 1),
+                user_id: Number(rwa.user_id || 0),
+                year_built: rwa.year_built ? Number(rwa.year_built) : null,
+                size_m2: rwa.size_m2 ? Number(rwa.size_m2) : null
+            };
         } catch (error) {
             throw new Error(`Erro ao buscar RWA: ${error.message}`);
         }
     }
 
     static async findByUserId(userId) {
-        const query = `
-            SELECT r.*
-            FROM rwa r
-            WHERE r.user_id = $1
-            ORDER BY r.created_at DESC
-        `;
-
         try {
-            const result = await pool.query(query, [userId]);
-            return result.rows;
+            const rwas = await RWA.query()
+                .where('user_id', userId)
+                .orderBy('created_at', 'desc')
+                .withGraphFetched('[owner, images, facilities]');
+
+            // Garantir que os campos numéricos sejam números e tenham valores válidos
+            return rwas.map(rwa => ({
+                ...rwa,
+                current_value: Number(rwa.current_value || 0),
+                total_tokens: Number(rwa.total_tokens || 1),
+                user_id: Number(rwa.user_id || 0),
+                year_built: rwa.year_built ? Number(rwa.year_built) : null,
+                size_m2: rwa.size_m2 ? Number(rwa.size_m2) : null
+            }));
         } catch (error) {
             throw new Error(`Erro ao buscar RWAs do usuário: ${error.message}`);
         }
     }
 
     static async update(id, rwaData) {
-        const {
-            name,
-            gpsCoordinates,
-            city,
-            country,
-            description,
-            currentValue,
-            totalTokens,
-            yearBuilt,
-            sizeM2,
-            status
-        } = rwaData;
-
-        const query = `
-            UPDATE rwa
-            SET 
-                name = COALESCE($1, name),
-                gps_coordinates = COALESCE($2, gps_coordinates),
-                city = COALESCE($3, city),
-                country = COALESCE($4, country),
-                description = COALESCE($5, description),
-                current_value = COALESCE($6, current_value),
-                total_tokens = COALESCE($7, total_tokens),
-                year_built = COALESCE($8, year_built),
-                size_m2 = COALESCE($9, size_m2),
-                status = COALESCE($10, status),
-                updated_at = CURRENT_TIMESTAMP
-            WHERE id = $11
-            RETURNING *
-        `;
-
-        const values = [
-            name, gpsCoordinates, city, country, description,
-            currentValue, totalTokens, yearBuilt, sizeM2,
-            status, id
-        ];
-
         try {
-            const result = await pool.query(query, values);
-            return result.rows[0];
+            // Garantir que os campos numéricos sejam números e tenham valores válidos
+            const data = {
+                ...rwaData,
+                current_value: rwaData.current_value !== undefined ? Number(rwaData.current_value) : undefined,
+                total_tokens: rwaData.total_tokens !== undefined ? Number(rwaData.total_tokens) : undefined,
+                user_id: rwaData.user_id !== undefined ? Number(rwaData.user_id) : undefined,
+                year_built: rwaData.year_built !== undefined ? Number(rwaData.year_built) : undefined,
+                size_m2: rwaData.size_m2 !== undefined ? Number(rwaData.size_m2) : undefined
+            };
+
+            // Validar campos se fornecidos
+            if (data.current_value !== undefined && data.current_value < 0) {
+                throw new Error('current_value deve ser maior ou igual a zero');
+            }
+
+            if (data.total_tokens !== undefined && data.total_tokens < 1) {
+                throw new Error('total_tokens deve ser maior que zero');
+            }
+
+            if (data.user_id !== undefined && data.user_id <= 0) {
+                throw new Error('user_id deve ser maior que zero');
+            }
+
+            await RWA.query().patchAndFetchById(id, data);
+            return await RWA.query()
+                .findById(id)
+                .withGraphFetched('[owner, images, facilities]');
         } catch (error) {
             throw new Error(`Erro ao atualizar RWA: ${error.message}`);
         }
     }
 
     static async delete(id) {
-        const query = 'DELETE FROM rwa WHERE id = $1 RETURNING *';
-
         try {
-            const result = await pool.query(query, [id]);
-            return result.rows[0];
+            return await RWA.query().deleteById(id);
         } catch (error) {
             throw new Error(`Erro ao deletar RWA: ${error.message}`);
         }
     }
 
     static async listAll(filters = {}, page = 1, limit = 10) {
-        let query = `
-            SELECT r.*
-            FROM rwa r
-        `;
-        const values = [];
-        let whereClause = '';
-        let paramCount = 1;
-
-        // Aplicar filtros
-        if (filters.city) {
-            whereClause += ` r.city ILIKE $${paramCount} AND`;
-            values.push(`%${filters.city}%`);
-            paramCount++;
-        }
-
-        if (filters.country) {
-            whereClause += ` r.country ILIKE $${paramCount} AND`;
-            values.push(`%${filters.country}%`);
-            paramCount++;
-        }
-
-        if (filters.status) {
-            whereClause += ` r.status = $${paramCount} AND`;
-            values.push(filters.status);
-            paramCount++;
-        }
-
-        if (whereClause) {
-            query += ' WHERE ' + whereClause.slice(0, -4);
-        }
-
-        // Adicionar paginação
-        const offset = (page - 1) * limit;
-        query += ` ORDER BY r.created_at DESC LIMIT $${paramCount} OFFSET $${paramCount + 1}`;
-        values.push(limit, offset);
-
         try {
-            const result = await pool.query(query, values);
-            return result.rows;
+            let query = RWA.query();
+
+            // Aplicar filtros
+            if (filters.city) {
+                query = query.where('city', 'ilike', `%${filters.city}%`);
+            }
+
+            if (filters.country) {
+                query = query.where('country', 'ilike', `%${filters.country}%`);
+            }
+
+            if (filters.status) {
+                query = query.where('status', filters.status);
+            }
+
+            // Adicionar paginação
+            const offset = (page - 1) * limit;
+            const rwas = await query
+                .orderBy('created_at', 'desc')
+                .limit(limit)
+                .offset(offset)
+                .withGraphFetched('[owner, images, facilities]');
+
+            // Garantir que os campos numéricos sejam números e tenham valores válidos
+            return rwas.map(rwa => ({
+                ...rwa,
+                current_value: Number(rwa.current_value || 0),
+                total_tokens: Number(rwa.total_tokens || 1),
+                user_id: Number(rwa.user_id || 0),
+                year_built: rwa.year_built ? Number(rwa.year_built) : null,
+                size_m2: rwa.size_m2 ? Number(rwa.size_m2) : null
+            }));
         } catch (error) {
             throw new Error(`Erro ao listar RWAs: ${error.message}`);
         }
     }
 
-    // Método para buscar RWAs por proximidade - simplificado sem postgis
-    static async findByProximity(latitude, longitude, radiusInMeters = 1000) {
-        // Implementação simplificada - retorna todos os RWAs
-        const query = `
-            SELECT r.*
-            FROM rwa r
-            ORDER BY r.created_at DESC
-        `;
-
+    static async findByProximity(latitude, longitude, radius = 1000) {
         try {
-            const result = await pool.query(query);
-            return result.rows;
+            const rwas = await RWA.query()
+                .orderBy('created_at', 'desc')
+                .withGraphFetched('[owner, images, facilities]');
+
+            // Garantir que os campos numéricos sejam números e tenham valores válidos
+            return rwas.map(rwa => ({
+                ...rwa,
+                current_value: Number(rwa.current_value || 0),
+                total_tokens: Number(rwa.total_tokens || 1),
+                user_id: Number(rwa.user_id || 0),
+                year_built: rwa.year_built ? Number(rwa.year_built) : null,
+                size_m2: rwa.size_m2 ? Number(rwa.size_m2) : null
+            }));
         } catch (error) {
             throw new Error(`Erro ao buscar RWAs por proximidade: ${error.message}`);
+        }
+    }
+
+    static async findTokensByOwner(userId) {
+        try {
+            const result = await pool.query(
+                `SELECT t.*, r.name as rwa_name, r.city, r.state
+                 FROM rwa_nft_tokens t
+                 JOIN rwa r ON t.rwa_id = r.id
+                 WHERE t.owner_user_id = $1
+                 ORDER BY t.created_at DESC`,
+                [userId]
+            );
+            return result.rows;
+        } catch (error) {
+            throw new Error(`Erro ao buscar tokens do usuário: ${error.message}`);
+        }
+    }
+
+    static async findUserById(userId) {
+        try {
+            const user = await db('users')
+                .select('id', 'email', 'wallet_address', 'created_at')
+                .where('id', userId)
+                .first();
+
+            return user;
+        } catch (error) {
+            throw new Error(`Erro ao buscar usuário: ${error.message}`);
         }
     }
 }

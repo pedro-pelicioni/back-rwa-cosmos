@@ -1,147 +1,143 @@
-const { pool } = require('../database/connection');
+const { Model } = require('objection');
+const db = require('../database/knex');
 
-class RWAFacility {
+// Conectar o Model ao Knex
+Model.knex(db);
+
+class RWAFacility extends Model {
+    static get tableName() {
+        return 'rwa_facilities';
+    }
+
+    static get jsonSchema() {
+        return {
+            type: 'object',
+            required: ['rwa_id', 'name', 'type'],
+            properties: {
+                id: { type: 'integer' },
+                rwa_id: { type: 'integer' },
+                name: { type: 'string' },
+                description: { type: ['string', 'null'] },
+                size_m2: { type: ['number', 'null'] },
+                floor_number: { type: ['integer', 'null'] },
+                type: { type: 'string' },
+                status: { 
+                    type: 'string',
+                    enum: ['active', 'inactive', 'maintenance']
+                },
+                created_at: { type: 'string', format: 'date-time' },
+                updated_at: { type: 'string', format: 'date-time' }
+            }
+        };
+    }
+
+    static get relationMappings() {
+        const RWA = require('./RWA');
+
+        return {
+            rwa: {
+                relation: Model.BelongsToOneRelation,
+                modelClass: RWA,
+                join: {
+                    from: 'rwa_facilities.rwa_id',
+                    to: 'rwa.id'
+                }
+            }
+        };
+    }
+
     static async create(facilityData) {
-        const { rwa_id, name, description, size_m2, floor_number, type, status } = facilityData;
-        
-        const query = `
-            INSERT INTO rwa_facilities (rwa_id, name, description, size_m2, floor_number, type, status)
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
-            RETURNING *
-        `;
-        
-        const values = [rwa_id, name, description, size_m2, floor_number, type, status];
-        
         try {
-            const result = await pool.query(query, values);
-            return result.rows[0];
+            return await RWAFacility.query().insert(facilityData);
         } catch (error) {
             throw new Error(`Erro ao criar instalação do RWA: ${error.message}`);
         }
     }
 
     static async getById(id) {
-        const query = 'SELECT * FROM rwa_facilities WHERE id = $1';
-        
         try {
-            const result = await pool.query(query, [id]);
-            return result.rows[0];
+            return await RWAFacility.query().findById(id);
         } catch (error) {
             throw new Error(`Erro ao buscar instalação do RWA: ${error.message}`);
         }
     }
 
     static async getByRWAId(rwa_id) {
-        const query = 'SELECT * FROM rwa_facilities WHERE rwa_id = $1 ORDER BY type, name';
-        
         try {
-            const result = await pool.query(query, [rwa_id]);
-            return result.rows;
+            return await RWAFacility.query()
+                .where('rwa_id', rwa_id)
+                .orderBy(['type', 'name']);
         } catch (error) {
             throw new Error(`Erro ao buscar instalações do RWA: ${error.message}`);
         }
     }
 
     static async getByType(rwa_id, type) {
-        const query = 'SELECT * FROM rwa_facilities WHERE rwa_id = $1 AND type = $2 ORDER BY name';
-        
         try {
-            const result = await pool.query(query, [rwa_id, type]);
-            return result.rows;
+            return await RWAFacility.query()
+                .where({ rwa_id, type })
+                .orderBy('name');
         } catch (error) {
             throw new Error(`Erro ao buscar instalações por tipo: ${error.message}`);
         }
     }
 
     static async update(id, facilityData) {
-        const { name, description, size_m2, floor_number, type, status } = facilityData;
-        
-        const query = `
-            UPDATE rwa_facilities
-            SET name = $1,
-                description = $2,
-                size_m2 = $3,
-                floor_number = $4,
-                type = $5,
-                status = $6,
-                updated_at = CURRENT_TIMESTAMP
-            WHERE id = $7
-            RETURNING *
-        `;
-        
-        const values = [name, description, size_m2, floor_number, type, status, id];
-        
         try {
-            const result = await pool.query(query, values);
-            return result.rows[0];
+            return await RWAFacility.query()
+                .patchAndFetchById(id, {
+                    ...facilityData,
+                    updated_at: new Date().toISOString()
+                });
         } catch (error) {
             throw new Error(`Erro ao atualizar instalação do RWA: ${error.message}`);
         }
     }
 
     static async delete(id) {
-        const query = 'DELETE FROM rwa_facilities WHERE id = $1 RETURNING *';
-        
         try {
-            const result = await pool.query(query, [id]);
-            return result.rows[0];
+            return await RWAFacility.query().deleteById(id);
         } catch (error) {
             throw new Error(`Erro ao deletar instalação do RWA: ${error.message}`);
         }
     }
 
     static async getTypes() {
-        const query = 'SELECT DISTINCT type FROM rwa_facilities ORDER BY type';
-        
         try {
-            const result = await pool.query(query);
-            return result.rows.map(row => row.type);
+            const result = await RWAFacility.query()
+                .distinct('type')
+                .orderBy('type');
+            return result.map(row => row.type);
         } catch (error) {
             throw new Error(`Erro ao buscar tipos de instalações: ${error.message}`);
         }
     }
 
     static async getFacilitiesByFilter(filters) {
-        const { type, min_size, max_size, floor_number, status } = filters;
-        let query = 'SELECT * FROM rwa_facilities WHERE 1=1';
-        const values = [];
-        let paramCount = 1;
-
-        if (type) {
-            query += ` AND type = $${paramCount}`;
-            values.push(type);
-            paramCount++;
-        }
-
-        if (min_size) {
-            query += ` AND size_m2 >= $${paramCount}`;
-            values.push(min_size);
-            paramCount++;
-        }
-
-        if (max_size) {
-            query += ` AND size_m2 <= $${paramCount}`;
-            values.push(max_size);
-            paramCount++;
-        }
-
-        if (floor_number) {
-            query += ` AND floor_number = $${paramCount}`;
-            values.push(floor_number);
-            paramCount++;
-        }
-
-        if (status) {
-            query += ` AND status = $${paramCount}`;
-            values.push(status);
-            paramCount++;
-        }
-
-        query += ' ORDER BY type, name';
-
         try {
-            const result = await pool.query(query, values);
-            return result.rows;
+            let query = RWAFacility.query();
+
+            if (filters.type) {
+                query = query.where('type', filters.type);
+            }
+
+            if (filters.min_size) {
+                query = query.where('size_m2', '>=', filters.min_size);
+            }
+
+            if (filters.max_size) {
+                query = query.where('size_m2', '<=', filters.max_size);
+            }
+
+            if (filters.floor_number) {
+                query = query.where('floor_number', filters.floor_number);
+            }
+
+            if (filters.status) {
+                query = query.where('status', filters.status);
+            }
+
+            return await query.orderBy(['type', 'name']);
         } catch (error) {
             throw new Error(`Erro ao buscar instalações com filtros: ${error.message}`);
         }

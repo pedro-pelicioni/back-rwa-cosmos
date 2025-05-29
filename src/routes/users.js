@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const usersController = require('../controllers/usersController');
 const walletAuth = require('../middleware/walletAuth');
+const jwtAuth = require('../middleware/jwtAuth');
 
 /**
  * @swagger
@@ -66,7 +67,7 @@ router.get('/me', walletAuth, usersController.getMe);
  *       500:
  *         description: Erro interno do servidor
  */
-router.post('/kyc/basic', walletAuth, usersController.submitKycBasic);
+router.post('/kyc/basic', jwtAuth, usersController.submitKycBasic);
 
 /**
  * @swagger
@@ -150,7 +151,7 @@ router.post('/kyc/documents', walletAuth, usersController.submitKycDocuments);
  *       500:
  *         description: Erro interno do servidor
  */
-router.get('/kyc', walletAuth, usersController.getKyc);
+router.get('/kyc', jwtAuth, usersController.getKyc);
 
 // Desativadas para o MVP atual
 // router.get('/', ...);

@@ -137,7 +137,7 @@ router.get('/token/:token_id', RWAOwnershipHistoryController.getByTokenId);
  *               items:
  *                 $ref: '#/components/schemas/RWAOwnershipHistory'
  */
-router.get('/user/:user_id', RWAOwnershipHistoryController.getByUserId);
+router.get('/user/:user_id', jwtAuth, RWAOwnershipHistoryController.getByUserId);
 
 /**
  * @swagger

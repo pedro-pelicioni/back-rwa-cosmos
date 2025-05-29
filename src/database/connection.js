@@ -8,17 +8,13 @@ dotenv.config();
 // Lê o certificado CA
 const ca = fs.readFileSync(path.join(__dirname, '../../ca.pem'), 'utf8');
 
-// Configuração da conexão com o PostgreSQL
+// Configuração da conexão com o PostgreSQL (Aiven)
 const pool = new Pool({
-  connectionString: process.env.NODE_ENV === 'production' 
-    ? 'postgres://avnadmin:AVNS_zw8vtVrsCTR_oC7ZVJR@imolatan-rwa-imolatam.g.aivencloud.com:13273/defaultdb'
-    : 'postgres://postgres:admin@localhost:5432/postgres',
-  ssl: process.env.NODE_ENV === 'production' 
-    ? {
-        ca,
-        rejectUnauthorized: true
-      }
-    : false
+  connectionString: 'postgres://avnadmin:AVNS_zw8vtVrsCTR_oC7ZVJR@imolatan-rwa-imolatam.g.aivencloud.com:13273/defaultdb',
+  ssl: {
+    ca,
+    rejectUnauthorized: true
+  }
 });
 
 // Teste de conexão

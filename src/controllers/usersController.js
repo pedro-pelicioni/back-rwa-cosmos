@@ -6,7 +6,7 @@ const { pool } = require('../database/connection');
 // Obter dados do usuário atualmente logado
 exports.getMe = async (req, res) => {
   try {
-    const walletAddress = req.user.wallet_address;
+    const walletAddress = req.user.address;
     
     // Buscar informações do usuário
     const userResult = await pool.query(
@@ -171,7 +171,7 @@ exports.getKyc = async (req, res) => {
     const walletAddress = req.user.wallet_address;
 
     const result = await pool.query(
-      `SELECT id, nome, cpf, status, created_at, updated_at,
+      `SELECT id, nome, cpf, status, created_at,
               documento_frente_cid, documento_verso_cid,
               selfie_1_cid, selfie_2_cid
        FROM kyc WHERE wallet_address = $1`,

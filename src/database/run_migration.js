@@ -1,22 +1,20 @@
-const { pool } = require('./connection');
 const fs = require('fs');
 const path = require('path');
+const { pool } = require('./connection');
 
 async function runMigration() {
   try {
-    console.log('Iniciando migração...');
-    
-    // Ler o arquivo de migração
-    const migrationPath = path.join(__dirname, 'migrations', '012_add_timestamps_to_token_sales.sql');
-    const migrationSQL = fs.readFileSync(migrationPath, 'utf8');
-    
-    // Executar a migração
-    await pool.query(migrationSQL);
-    console.log('Migração concluída com sucesso!');
+    // Lê o arquivo SQL
+    const sqlFile = path.join(__dirname, 'migrations', '010_update_kyc_table.sql');
+    const sql = fs.readFileSync(sqlFile, 'utf8');
+
+    // Executa a migração
+    await pool.query(sql);
+    console.log('Migração executada com sucesso!');
+    process.exit(0);
   } catch (error) {
     console.error('Erro ao executar migração:', error);
-  } finally {
-    await pool.end();
+    process.exit(1);
   }
 }
 
