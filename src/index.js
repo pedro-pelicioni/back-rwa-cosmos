@@ -34,7 +34,7 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs, { explorer: 
 
 // Rotas públicas
 app.use('/api/auth', authRoutes);
-app.use('/api/rwa', rwaRoutes); // Rota de RWA pública agora
+app.use('/api/rwa', rwaRoutes);
 
 // Rotas protegidas
 app.use('/api/users', jwtAuth, userRoutes);
@@ -42,8 +42,8 @@ app.use('/api/admin', jwtAuth, adminRoutes);
 app.use('/api/rwa/images', rwaImageRoutes);
 app.use('/api/rwa/facilities', jwtAuth, rwaFacilityRoutes);
 app.use('/api/rwa/nfts', rwaNftRoutes);
-app.use('/api/rwa/tokens/sale', jwtAuth, rwaTokenSaleRoutes);
-app.use('/api/rwa/ownership-history', jwtAuth, rwaOwnershipHistoryRoutes);
+app.use('/api/rwa/tokens/sale', rwaTokenSaleRoutes);
+app.use('/api/rwa/ownership-history', rwaOwnershipHistoryRoutes);
 
 // Rota de saúde
 app.get('/health', (req, res) => {

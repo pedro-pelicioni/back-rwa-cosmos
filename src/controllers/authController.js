@@ -48,9 +48,10 @@ async function verifyADR36Signature(signerAddress, data, signature) {
     if (decodedSignature.length !== 64) {
       try {
         const secp256k1 = require('secp256k1');
+        console.log('\n4. Tentando converter assinatura DER para raw:');
+        console.log('- Tamanho original:', decodedSignature.length);
         decodedSignature = secp256k1.signatureImport(decodedSignature);
-        console.log('\n4. Conversão de assinatura DER para raw:');
-        console.log('- Nova assinatura (tamanho):', decodedSignature.length);
+        console.log('- Tamanho após conversão:', decodedSignature.length);
         console.log('- Nova assinatura (hex):', decodedSignature.toString('hex'));
         console.log('- Nova assinatura (bytes):', Array.from(decodedSignature));
       } catch (err) {
@@ -86,7 +87,7 @@ async function verifyADR36Signature(signerAddress, data, signature) {
           type: "sign/MsgSignData",
           value: {
             signer: signerAddress,
-            data: messageBase64 // Usar a mensagem formatada em base64
+            data: messageBase64
           }
         }
       ],
@@ -122,14 +123,38 @@ async function verifyADR36Signature(signerAddress, data, signature) {
     let isValid = false;
     try {
       console.log('\n10. Tentativa de validação:');
-      isValid = await Secp256k1.verifySignature(
-        secp256k1Signature,
-        hash,
-        decodedPubkey
-      );
-      console.log('- Resultado da validação:', isValid);
+      console.log('- Hash a ser verificado:', Buffer.from(hash).toString('hex'));
+      console.log('- Chave pública usada:', Buffer.from(decodedPubkey).toString('hex'));
+      console.log('- Componente R:', r.toString('hex'));
+      console.log('- Componente S:', s.toString('hex'));
+      
+      // Ajustar a chave pública se necessário
+      let pubkeyToUse = decodedPubkey;
+      if (pubkeyToUse[0] !== 0x02 && pubkeyToUse[0] !== 0x03) {
+        // Se não tiver prefixo, adiciona o prefixo 0x02 (par) ou 0x03 (ímpar)
+        const newPubkey = Buffer.alloc(33);
+        newPubkey[0] = 0x02; // Usar 0x02 como padrão
+        pubkeyToUse.copy(newPubkey, 1, 1);
+        pubkeyToUse = newPubkey;
+        console.log('\n11. Chave pública ajustada:');
+        console.log('- Nova chave pública (hex):', pubkeyToUse.toString('hex'));
+      }
+
+      // Tentar validar com a chave pública ajustada
+      try {
+        isValid = await Secp256k1.verifySignature(
+          secp256k1Signature,
+          hash,
+          pubkeyToUse
+        );
+        console.log('- Resultado da validação com chave ajustada:', isValid);
+      } catch (err) {
+        console.error('- Erro ao validar com chave ajustada:', err);
+      }
+
     } catch (err) {
       console.error('- Erro ao validar assinatura:', err);
+      console.error('- Stack trace:', err.stack);
       return false;
     }
 
@@ -148,6 +173,7 @@ async function verifyADR36Signature(signerAddress, data, signature) {
     return isValid;
   } catch (error) {
     console.error('Erro ao verificar assinatura:', error);
+    console.error('Stack trace:', error.stack);
     return false;
   }
 }
@@ -186,11 +212,23 @@ exports.generateNonce = async (req, res) => {
 // Login via wallet com assinatura
 exports.walletLogin = async (req, res) => {
   try {
-    const { address, signature, nonce } = req.body;
+    console.log('\n=== [INÍCIO DO LOGIN VIA WALLET] ===');
+    console.log('1. Dados recebidos na requisição:');
+    console.log('- Body completo:', JSON.stringify(req.body, null, 2));
+    
+    const { address, signature, nonce, pub_key } = req.body;
     
     if (!address || !signature || !nonce) {
+      console.error('Dados obrigatórios faltando:');
+      console.error('- Address:', address);
+      console.error('- Signature:', signature);
+      console.error('- Nonce:', nonce);
       return res.status(400).json({ message: 'Endereço, assinatura e nonce são obrigatórios' });
     }
+    
+    console.log('\n2. Validando nonce:');
+    console.log('- Endereço:', address);
+    console.log('- Nonce recebido:', nonce);
     
     // Buscar nonce no banco
     const nonceResult = await pool.query(
@@ -199,27 +237,115 @@ exports.walletLogin = async (req, res) => {
     );
     
     if (nonceResult.rows.length === 0) {
+      console.error('Nonce não encontrado para o endereço:', address);
       return res.status(400).json({ message: 'Nonce não encontrado ou expirado' });
     }
     
     const storedNonce = nonceResult.rows[0].nonce;
+    console.log('- Nonce armazenado:', storedNonce);
     
     if (nonce !== storedNonce) {
+      console.error('Nonce inválido:');
+      console.error('- Recebido:', nonce);
+      console.error('- Armazenado:', storedNonce);
       return res.status(400).json({ message: 'Nonce inválido' });
     }
     
+    console.log('\n3. Processando assinatura:');
     // Validar assinatura
     try {
-      // Usar o nonce em hex diretamente (sem converter para base64)
-      console.log('Nonce em hex:', nonce);
-      
       // Verificar se a assinatura é uma string JSON
       let signatureObj;
       try {
-        signatureObj = typeof signature === 'string' ? JSON.parse(signature) : signature;
-        console.log('Assinatura parseada:', JSON.stringify(signatureObj, null, 2));
+        if (typeof signature === 'string') {
+          console.log('Assinatura recebida como string, tentando parsear como JSON');
+          // Tenta primeiro como JSON
+          try {
+            signatureObj = JSON.parse(signature);
+            console.log('Assinatura parseada com sucesso como JSON');
+          } catch (e) {
+            console.log('Assinatura não é JSON válido, usando como string direta');
+            // Se não for JSON, assume que é uma string de assinatura direta
+            signatureObj = {
+              signature: signature,
+              pub_key: {
+                type: 'tendermint/PubKeySecp256k1',
+                value: '' // Será preenchido pelo frontend
+              }
+            };
+          }
+        } else {
+          console.log('Assinatura recebida como objeto:', typeof signature);
+          signatureObj = signature;
+        }
+
+        // Log detalhado do objeto de assinatura
+        console.log('\n4. Detalhes do objeto de assinatura:');
+        console.log('- Objeto completo:', JSON.stringify(signatureObj, null, 2));
+        console.log('- Tipo da assinatura:', typeof signatureObj.signature);
+        console.log('- Tipo da chave pública:', typeof signatureObj.pub_key);
+        console.log('- Valor da chave pública:', signatureObj.pub_key?.value);
+
+        // Processar a chave pública
+        console.log('\n5. Processando chave pública:');
+        console.log('- pub_key recebido:', JSON.stringify(pub_key, null, 2));
+
+        if (pub_key && pub_key.value) {
+          // Se o valor da chave pública for um objeto com bytes
+          if (typeof pub_key.value === 'object' && !Array.isArray(pub_key.value)) {
+            console.log('Convertendo objeto de bytes para Uint8Array');
+            const bytes = Object.values(pub_key.value);
+            console.log('- Bytes extraídos:', bytes);
+            
+            const uint8Array = new Uint8Array(bytes);
+            console.log('- Uint8Array criado:', Array.from(uint8Array));
+            
+            const buffer = Buffer.from(uint8Array);
+            console.log('- Buffer criado:', buffer);
+            
+            const base64PubKey = buffer.toString('base64');
+            console.log('- Chave pública em base64:', base64PubKey);
+            
+            signatureObj.pub_key = {
+              type: 'tendermint/PubKeySecp256k1',
+              value: base64PubKey
+            };
+          } else if (typeof pub_key.value === 'string') {
+            console.log('Chave pública já está em formato string');
+            signatureObj.pub_key = pub_key;
+          } else {
+            console.log('Formato de chave pública não reconhecido:', typeof pub_key.value);
+            return res.status(401).json({ 
+              message: 'Formato de chave pública inválido',
+              details: 'A chave pública deve ser um objeto com bytes ou string base64'
+            });
+          }
+        }
+
+        // Validar se a chave pública está presente e não vazia
+        if (!signatureObj.pub_key || !signatureObj.pub_key.value || signatureObj.pub_key.value.trim() === '') {
+          console.error('\n6. Erro: Chave pública não fornecida ou vazia');
+          console.error('- Objeto de assinatura:', JSON.stringify(signatureObj, null, 2));
+          return res.status(401).json({ 
+            message: 'Chave pública não fornecida na assinatura',
+            details: 'A chave pública é necessária para validar a assinatura'
+          });
+        }
+
+        // Validar se a assinatura está presente e não vazia
+        if (!signatureObj.signature || signatureObj.signature.trim() === '') {
+          console.error('\n7. Erro: Assinatura não fornecida ou vazia');
+          console.error('- Objeto de assinatura:', JSON.stringify(signatureObj, null, 2));
+          return res.status(401).json({ 
+            message: 'Assinatura não fornecida',
+            details: 'A assinatura é necessária para autenticação'
+          });
+        }
+
+        console.log('\n8. Assinatura processada com sucesso:');
+        console.log('- Objeto final:', JSON.stringify(signatureObj, null, 2));
       } catch (e) {
-        console.error('Erro ao parsear assinatura:', e);
+        console.error('Erro ao processar assinatura:', e);
         return res.status(401).json({ message: 'Formato de assinatura inválido' });
       }
 

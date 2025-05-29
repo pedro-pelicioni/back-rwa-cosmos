@@ -164,4 +164,12 @@ router.put('/:id', jwtAuth, RWANFTController.update);
  */
 router.delete('/:id', jwtAuth, RWANFTController.delete);
 
+// Rotas públicas
+router.get('/token/:token_id', RWANFTController.getByTokenId);
+
+// Rotas de operações blockchain
+router.post('/mint', jwtAuth, RWANFTController.mint);
+router.post('/burn', jwtAuth, RWANFTController.burn);
+router.post('/transfer', jwtAuth, RWANFTController.transfer);
+
 module.exports = router; 

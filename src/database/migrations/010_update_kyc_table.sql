@@ -1,7 +1,7 @@
 -- Atualiza a tabela kyc para usar wallet_address
 ALTER TABLE IF EXISTS kyc RENAME COLUMN user_address TO wallet_address;
 
--- Verifica se a tabela kyc existe e se não, cria com a estrutura correta
+-- Criar a tabela kyc com a estrutura correta
 CREATE TABLE IF NOT EXISTS kyc (
     id SERIAL PRIMARY KEY,
     wallet_address VARCHAR(255) NOT NULL REFERENCES users(wallet_address) ON DELETE CASCADE,

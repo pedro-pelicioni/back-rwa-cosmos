@@ -1,105 +1,109 @@
-const { pool } = require('../database/connection');
+const { Model } = require('objection');
+const db = require('../database/knex');
 
-class RWAImage {
+// Conectar o Model ao Knex
+Model.knex(db);
+
+class RWAImage extends Model {
+    static get tableName() {
+        return 'rwa_images';
+    }
+
+    static get jsonSchema() {
+        return {
+            type: 'object',
+            required: ['rwa_id', 'title'],
+            properties: {
+                id: { type: 'integer' },
+                rwa_id: { type: 'integer' },
+                title: { type: 'string' },
+                description: { type: ['string', 'null'] },
+                cid_link: { type: ['string', 'null'] },
+                file_path: { type: ['string', 'null'] },
+                image_data: { type: ['string', 'null'] },
+                display_order: { type: 'integer' },
+                created_at: { type: 'string', format: 'date-time' },
+                updated_at: { type: 'string', format: 'date-time' }
+            }
+        };
+    }
+
+    static get relationMappings() {
+        const RWA = require('./RWA');
+
+        return {
+            rwa: {
+                relation: Model.BelongsToOneRelation,
+                modelClass: RWA,
+                join: {
+                    from: 'rwa_images.rwa_id',
+                    to: 'rwa.id'
+                }
+            }
+        };
+    }
+
     static async create(imageData) {
-        const { rwa_id, title, description, cid_link, file_path, image_data, display_order } = imageData;
-        
-        const query = `
-            INSERT INTO rwa_images (rwa_id, title, description, cid_link, file_path, image_data, display_order)
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
-            RETURNING *
-        `;
-        
-        const values = [rwa_id, title, description, cid_link, file_path, image_data, display_order];
-        
         try {
-            const result = await pool.query(query, values);
-            return result.rows[0];
+            return await RWAImage.query().insert(imageData);
         } catch (error) {
             throw new Error(`Erro ao criar imagem do RWA: ${error.message}`);
         }
     }
 
     static async getById(id) {
-        const query = 'SELECT * FROM rwa_images WHERE id = $1';
-        
         try {
-            const result = await pool.query(query, [id]);
-            return result.rows[0];
+            return await RWAImage.query().findById(id);
         } catch (error) {
             throw new Error(`Erro ao buscar imagem do RWA: ${error.message}`);
         }
     }
 
     static async getByRWAId(rwa_id) {
-        const query = 'SELECT * FROM rwa_images WHERE rwa_id = $1 ORDER BY display_order ASC';
-        
         try {
-            const result = await pool.query(query, [rwa_id]);
-            return result.rows;
+            return await RWAImage.query()
+                .where('rwa_id', rwa_id)
+                .orderBy('display_order', 'asc');
         } catch (error) {
             throw new Error(`Erro ao buscar imagens do RWA: ${error.message}`);
         }
     }
 
     static async update(id, imageData) {
-        const { title, description, cid_link, file_path, image_data, display_order } = imageData;
-        
-        const query = `
-            UPDATE rwa_images
-            SET title = $1,
-                description = $2,
-                cid_link = $3,
-                file_path = $4,
-                image_data = $5,
-                display_order = $6,
-                updated_at = CURRENT_TIMESTAMP
-            WHERE id = $7
-            RETURNING *
-        `;
-        
-        const values = [title, description, cid_link, file_path, image_data, display_order, id];
-        
         try {
-            const result = await pool.query(query, values);
-            return result.rows[0];
+            return await RWAImage.query()
+                .patchAndFetchById(id, {
+                    ...imageData,
+                    updated_at: new Date().toISOString()
+                });
         } catch (error) {
             throw new Error(`Erro ao atualizar imagem do RWA: ${error.message}`);
         }
     }
 
     static async delete(id) {
-        const query = 'DELETE FROM rwa_images WHERE id = $1 RETURNING *';
-        
         try {
-            const result = await pool.query(query, [id]);
-            return result.rows[0];
+            return await RWAImage.query().deleteById(id);
         } catch (error) {
             throw new Error(`Erro ao deletar imagem do RWA: ${error.message}`);
         }
     }
 
     static async reorder(rwa_id, imageOrders) {
-        // imageOrders deve ser um array de objetos {id, display_order}
-        const client = await pool.connect();
+        const trx = await RWAImage.startTransaction();
         
         try {
-            await client.query('BEGIN');
-            
             for (const { id, display_order } of imageOrders) {
-                await client.query(
-                    'UPDATE rwa_images SET display_order = $1 WHERE id = $2 AND rwa_id = $3',
-                    [display_order, id, rwa_id]
-                );
+                await RWAImage.query(trx)
+                    .patch({ display_order })
+                    .where({ id, rwa_id });
             }
             
-            await client.query('COMMIT');
+            await trx.commit();
             return true;
         } catch (error) {
-            await client.query('ROLLBACK');
+            await trx.rollback();
             throw new Error(`Erro ao reordenar imagens: ${error.message}`);
-        } finally {
-            client.release();
         }
     }
 }

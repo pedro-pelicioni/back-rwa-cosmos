@@ -4,10 +4,12 @@ const rwaRoutes = require('./rwaRoutes');
 const rwaNftRoutes = require('./rwaNftRoutes');
 const rwaTokenSaleRoutes = require('./rwaTokenSaleRoutes');
 const authRoutes = require('./authRoutes');
+const tokenListingRoutes = require('./tokenListingRoutes');
 
 router.use('/rwa', rwaRoutes);
 router.use('/rwa/nfts', rwaNftRoutes);
 router.use('/rwa/tokens/sale', rwaTokenSaleRoutes);
 router.use('/auth', authRoutes);
+router.use('/marketplace', tokenListingRoutes);
 
 module.exports = router; 
