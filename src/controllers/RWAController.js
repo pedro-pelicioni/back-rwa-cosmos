@@ -56,7 +56,7 @@ class RWAController {
             const rwaData = req.body;
             
             // Validar campos obrigatórios
-            const requiredFields = ['name', 'gpsCoordinates', 'city', 'country', 'currentValue', 'totalTokens', 'userId'];
+            const requiredFields = ['name', 'location', 'city', 'country', 'currentValue', 'totalTokens'];
             const missingFields = requiredFields.filter(field => !rwaData[field]);
             
             if (missingFields.length > 0) {
@@ -69,7 +69,7 @@ class RWAController {
             // Garantir que os campos numéricos sejam números
             rwaData.currentValue = Number(rwaData.currentValue);
             rwaData.totalTokens = Number(rwaData.totalTokens);
-            rwaData.userId = Number(rwaData.userId);
+            rwaData.userId = req.user.id; // Usar o ID do usuário do token JWT
 
             // Validar valores numéricos
             if (rwaData.currentValue < 0) {
@@ -80,10 +80,6 @@ class RWAController {
                 return res.status(400).json({ error: 'totalTokens deve ser maior que zero' });
             }
 
-            if (rwaData.userId <= 0) {
-                return res.status(400).json({ error: 'userId deve ser maior que zero' });
-            }
-
             // Converter para snake_case antes de enviar para o modelo
             const snakeCaseData = convertToSnakeCase(rwaData);
             const rwa = await RWA.create(snakeCaseData);
@@ -91,13 +87,9 @@ class RWAController {
             // Converter de volta para camelCase antes de enviar para o frontend
             const camelCaseRwa = convertToCamelCase(rwa);
             
-            // Garantir que os campos numéricos estejam presentes
-            if (!camelCaseRwa.currentValue) camelCaseRwa.currentValue = 0;
-            if (!camelCaseRwa.totalTokens) camelCaseRwa.totalTokens = 1;
-            if (!camelCaseRwa.userId) camelCaseRwa.userId = 0;
-            
             res.status(201).json(camelCaseRwa);
         } catch (error) {
+            console.error('Erro ao criar RWA:', error);
             res.status(500).json({ error: error.message });
         }
     }

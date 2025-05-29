@@ -18,12 +18,12 @@ const jwtAuth = require('../middleware/jwtAuth');
  *         - location
  *         - city
  *         - country
- *         - propertyValue
+ *         - currentValue
  *         - totalTokens
  *       properties:
  *         id:
  *           type: integer
- *         user_id:
+ *         userId:
  *           type: integer
  *         name:
  *           type: string
@@ -35,7 +35,7 @@ const jwtAuth = require('../middleware/jwtAuth');
  *           type: string
  *         description:
  *           type: string
- *         propertyValue:
+ *         currentValue:
  *           type: number
  *         totalTokens:
  *           type: integer
@@ -45,10 +45,13 @@ const jwtAuth = require('../middleware/jwtAuth');
  *           type: number
  *         status:
  *           type: string
- *         created_at:
+ *           enum: [active, inactive, sold]
+ *         geometry:
+ *           type: object
+ *         createdAt:
  *           type: string
  *           format: date-time
- *         updated_at:
+ *         updatedAt:
  *           type: string
  *           format: date-time
  */
@@ -69,7 +72,7 @@ const jwtAuth = require('../middleware/jwtAuth');
  *             type: object
  *             required:
  *               - name
- *               - gpsCoordinates
+ *               - location
  *               - city
  *               - country
  *               - currentValue
@@ -77,7 +80,7 @@ const jwtAuth = require('../middleware/jwtAuth');
  *             properties:
  *               name:
  *                 type: string
- *               gpsCoordinates:
+ *               location:
  *                 type: string
  *               city:
  *                 type: string
