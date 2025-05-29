@@ -53,44 +53,158 @@ function convertToSnakeCase(obj) {
 class RWAController {
     static async create(req, res) {
         try {
+            console.log('=== INÍCIO DA CRIAÇÃO DE RWA ===');
+            console.log('Headers recebidos:', JSON.stringify(req.headers, null, 2));
+            console.log('Body recebido:', JSON.stringify(req.body, null, 2));
+            console.log('Usuário autenticado:', req.user.id);
+            
             const rwaData = req.body;
             
+            // Remover campos que não existem na tabela
+            delete rwaData.metadata;
+            
+            // Tratar campo price como currentValue
+            if (rwaData.price !== undefined && rwaData.currentValue === undefined) {
+                console.log('Convertendo campo price para currentValue');
+                rwaData.currentValue = rwaData.price;
+                delete rwaData.price;
+            }
+
+            // Converter location para gps_coordinates
+            if (rwaData.location && !rwaData.gpsCoordinates) {
+                console.log('Convertendo location para gps_coordinates');
+                rwaData.gpsCoordinates = rwaData.location;
+                delete rwaData.location;
+            }
+
+            // Converter gpsCoordinates para geometry se fornecido
+            if (rwaData.gpsCoordinates && !rwaData.geometry) {
+                console.log('Convertendo gpsCoordinates para geometry');
+                const [longitude, latitude] = rwaData.gpsCoordinates.split(',').map(coord => parseFloat(coord.trim()));
+                if (!isNaN(longitude) && !isNaN(latitude)) {
+                    rwaData.geometry = {
+                        type: 'Point',
+                        coordinates: [longitude, latitude]
+                    };
+                }
+                delete rwaData.gpsCoordinates;
+            }
+            
+            // Log dos tipos de dados recebidos
+            console.log('Tipos dos campos recebidos:', {
+                name: typeof rwaData.name,
+                gpsCoordinates: typeof rwaData.gpsCoordinates,
+                city: typeof rwaData.city,
+                country: typeof rwaData.country,
+                currentValue: typeof rwaData.currentValue,
+                totalTokens: typeof rwaData.totalTokens,
+                yearBuilt: typeof rwaData.yearBuilt,
+                sizeM2: typeof rwaData.sizeM2,
+                status: typeof rwaData.status,
+                geometry: typeof rwaData.geometry
+            });
+            
             // Validar campos obrigatórios
-            const requiredFields = ['name', 'location', 'city', 'country', 'currentValue', 'totalTokens'];
-            const missingFields = requiredFields.filter(field => !rwaData[field]);
+            const requiredFields = ['name', 'gpsCoordinates', 'city', 'country', 'currentValue', 'totalTokens'];
+            const missingFields = requiredFields.filter(field => {
+                const isMissing = !rwaData[field];
+                console.log(`Campo ${field}:`, {
+                    valor: rwaData[field],
+                    tipo: typeof rwaData[field],
+                    éVazio: isMissing
+                });
+                return isMissing;
+            });
             
             if (missingFields.length > 0) {
+                console.log('=== ERRO: CAMPOS OBRIGATÓRIOS FALTANDO ===');
+                console.log('Campos faltantes:', missingFields);
+                console.log('Valores recebidos:', {
+                    name: rwaData.name,
+                    gpsCoordinates: rwaData.gpsCoordinates,
+                    city: rwaData.city,
+                    country: rwaData.country,
+                    currentValue: rwaData.currentValue,
+                    totalTokens: rwaData.totalTokens
+                });
                 return res.status(400).json({
                     error: 'Campos obrigatórios faltando',
-                    fields: missingFields
+                    fields: missingFields,
+                    receivedValues: {
+                        name: rwaData.name,
+                        gpsCoordinates: rwaData.gpsCoordinates,
+                        city: rwaData.city,
+                        country: rwaData.country,
+                        currentValue: rwaData.currentValue,
+                        totalTokens: rwaData.totalTokens
+                    }
                 });
             }
 
             // Garantir que os campos numéricos sejam números
             rwaData.currentValue = Number(rwaData.currentValue);
             rwaData.totalTokens = Number(rwaData.totalTokens);
-            rwaData.userId = req.user.id; // Usar o ID do usuário do token JWT
+            rwaData.userId = req.user.id;
+
+            console.log('Valores após conversão numérica:', {
+                currentValue: {
+                    valor: rwaData.currentValue,
+                    tipo: typeof rwaData.currentValue,
+                    éNaN: isNaN(rwaData.currentValue)
+                },
+                totalTokens: {
+                    valor: rwaData.totalTokens,
+                    tipo: typeof rwaData.totalTokens,
+                    éNaN: isNaN(rwaData.totalTokens)
+                },
+                userId: rwaData.userId
+            });
 
             // Validar valores numéricos
-            if (rwaData.currentValue < 0) {
-                return res.status(400).json({ error: 'currentValue deve ser maior ou igual a zero' });
+            if (isNaN(rwaData.currentValue) || rwaData.currentValue < 0) {
+                console.log('Erro: currentValue inválido:', rwaData.currentValue);
+                return res.status(400).json({ 
+                    error: 'currentValue deve ser um número maior ou igual a zero',
+                    receivedValue: rwaData.currentValue
+                });
             }
 
-            if (rwaData.totalTokens < 1) {
-                return res.status(400).json({ error: 'totalTokens deve ser maior que zero' });
+            if (isNaN(rwaData.totalTokens) || rwaData.totalTokens < 1) {
+                console.log('Erro: totalTokens inválido:', rwaData.totalTokens);
+                return res.status(400).json({ 
+                    error: 'totalTokens deve ser um número maior que zero',
+                    receivedValue: rwaData.totalTokens
+                });
             }
 
             // Converter para snake_case antes de enviar para o modelo
             const snakeCaseData = convertToSnakeCase(rwaData);
+            console.log('Dados convertidos para snake_case:', JSON.stringify(snakeCaseData, null, 2));
+            
+            // Criar o RWA
             const rwa = await RWA.create(snakeCaseData);
+            console.log('RWA criado com sucesso:', JSON.stringify(rwa, null, 2));
+
+            // Criar os tokens NFT em lotes
+            console.log(`Iniciando criação de ${rwaData.totalTokens} tokens NFT para o RWA ${rwa.id}`);
+            const tokens = await RWA.createTokensInBatches(rwa.id, rwaData.userId, rwaData.totalTokens);
+            console.log(`${tokens.length} tokens NFT criados com sucesso para o RWA ${rwa.id}`);
             
             // Converter de volta para camelCase antes de enviar para o frontend
             const camelCaseRwa = convertToCamelCase(rwa);
+            camelCaseRwa.tokens = tokens.map(token => convertToCamelCase(token));
             
+            console.log('=== RWA CRIADO COM SUCESSO ===');
             res.status(201).json(camelCaseRwa);
         } catch (error) {
-            console.error('Erro ao criar RWA:', error);
-            res.status(500).json({ error: error.message });
+            console.error('=== ERRO AO CRIAR RWA ===');
+            console.error('Erro:', error);
+            console.error('Stack trace:', error.stack);
+            console.error('Dados que causaram o erro:', JSON.stringify(req.body, null, 2));
+            res.status(500).json({ 
+                error: error.message,
+                details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+            });
         }
     }
 

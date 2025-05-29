@@ -113,6 +113,54 @@ class RWA extends Model {
         }
     }
 
+    static async createToken(tokenData, trx) {
+        try {
+            const RWANFTToken = require('./RWANFTToken');
+            const token = await RWANFTToken.query(trx).insert({
+                rwa_id: tokenData.rwa_id,
+                token_identifier: tokenData.token_identifier,
+                owner_user_id: tokenData.owner_user_id,
+                metadata_uri: tokenData.metadata_uri
+            });
+
+            return token;
+        } catch (error) {
+            throw new Error(`Erro ao criar token NFT: ${error.message}`);
+        }
+    }
+
+    static async createTokensInBatches(rwaId, ownerUserId, totalTokens, batchSize = 100) {
+        const trx = await db.transaction();
+        try {
+            const tokens = [];
+            for (let i = 0; i < totalTokens; i += batchSize) {
+                const batchPromises = [];
+                const currentBatchSize = Math.min(batchSize, totalTokens - i);
+                
+                for (let j = 0; j < currentBatchSize; j++) {
+                    const tokenNumber = i + j + 1;
+                    const tokenData = {
+                        rwa_id: rwaId,
+                        token_identifier: `${rwaId}-${tokenNumber}`,
+                        owner_user_id: ownerUserId,
+                        metadata_uri: null
+                    };
+                    batchPromises.push(RWA.createToken(tokenData, trx));
+                }
+                
+                const batchTokens = await Promise.all(batchPromises);
+                tokens.push(...batchTokens);
+                console.log(`Lote ${i/batchSize + 1} concluído: ${currentBatchSize} tokens criados`);
+            }
+            
+            await trx.commit();
+            return tokens;
+        } catch (error) {
+            await trx.rollback();
+            throw error;
+        }
+    }
+
     static async findById(id) {
         try {
             const rwa = await RWA.query()
