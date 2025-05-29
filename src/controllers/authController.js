@@ -128,64 +128,30 @@ async function verifyADR36Signature(signerAddress, data, signature) {
       console.log('- Componente R:', r.toString('hex'));
       console.log('- Componente S:', s.toString('hex'));
       
-      // Garantir que a chave pública tenha o prefixo 0x03
+      // Ajustar a chave pública se necessário
       let pubkeyToUse = decodedPubkey;
-      if (pubkeyToUse[0] !== 0x03) {
+      if (pubkeyToUse[0] !== 0x02 && pubkeyToUse[0] !== 0x03) {
+        // Se não tiver prefixo, adiciona o prefixo 0x02 (par) ou 0x03 (ímpar)
         const newPubkey = Buffer.alloc(33);
-        newPubkey[0] = 0x03;
+        newPubkey[0] = 0x02; // Usar 0x02 como padrão
         pubkeyToUse.copy(newPubkey, 1, 1);
         pubkeyToUse = newPubkey;
         console.log('\n11. Chave pública ajustada:');
         console.log('- Nova chave pública (hex):', pubkeyToUse.toString('hex'));
       }
 
-      // Tentar validar com a chave pública original
+      // Tentar validar com a chave pública ajustada
       try {
         isValid = await Secp256k1.verifySignature(
           secp256k1Signature,
           hash,
           pubkeyToUse
         );
-        console.log('- Resultado da validação com chave original:', isValid);
+        console.log('- Resultado da validação com chave ajustada:', isValid);
       } catch (err) {
-        console.error('- Erro ao validar com chave original:', err);
+        console.error('- Erro ao validar com chave ajustada:', err);
       }
 
-      // Se falhar, tentar com a chave pública sem o prefixo 0x03
-      if (!isValid) {
-        try {
-          const pubkeyWithoutPrefix = pubkeyToUse.slice(1);
-          console.log('\n12. Tentativa alternativa com chave pública sem prefixo:');
-          console.log('- Chave pública sem prefixo (hex):', pubkeyWithoutPrefix.toString('hex'));
-          
-          isValid = await Secp256k1.verifySignature(
-            secp256k1Signature,
-            hash,
-            pubkeyWithoutPrefix
-          );
-          console.log('- Resultado da validação sem prefixo:', isValid);
-        } catch (err) {
-          console.error('- Erro ao validar sem prefixo:', err);
-        }
-      }
-
-      // Se ainda falhar, tentar com a chave pública em formato diferente
-      if (!isValid) {
-        try {
-          const pubkeyCompressed = Buffer.from(pubkeyToUse);
-          console.log('\n13. Tentativa alternativa com chave pública comprimida:');
-          console.log('- Chave pública comprimida (hex):', pubkeyCompressed.toString('hex'));
-          
-          isValid = await Secp256k1.verifySignature(
-            secp256k1Signature,
-            hash,
-            pubkeyCompressed
-          );
-          console.log('- Resultado da validação com chave comprimida:', isValid);
-        } catch (err) {
-          console.error('- Erro ao validar com chave comprimida:', err);
-        }
-      }
     } catch (err) {
       console.error('- Erro ao validar assinatura:', err);
       console.error('- Stack trace:', err.stack);
