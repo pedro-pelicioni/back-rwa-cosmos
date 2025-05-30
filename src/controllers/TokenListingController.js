@@ -1,6 +1,6 @@
 const TokenListing = require('../models/TokenListing');
 const TokenPriceHistory = require('../models/TokenPriceHistory');
-const NftToken = require('../models/NftToken');
+const RWANFTToken = require('../models/RWANFTToken');
 
 class TokenListingController {
     // Listar todos os tokens disponíveis para venda
@@ -26,7 +26,7 @@ class TokenListingController {
 
         try {
             // Verificar se o token pertence ao usuário
-            const token = await NftToken.query()
+            const token = await RWANFTToken.query()
                 .where('id', nft_token_id)
                 .where('owner_user_id', seller_id)
                 .first();
@@ -203,12 +203,19 @@ class TokenListingController {
             max_price, 
             status = 'active',
             sort_by = 'created_at',
-            sort_order = 'desc'
+            sort_order = 'desc',
+            page = 1,
+            limit = 20
         } = req.query;
 
         try {
+            // Calcular offset para paginação
+            const offset = (page - 1) * limit;
+
+            // Primeiro, buscar todos os listings existentes
             let query = TokenListing.query()
-                .withGraphFetched('[nftToken, seller, priceHistory]');
+                .withGraphFetched('[nftToken, seller, priceHistory]')
+                .where('current_price', '>', 0); // Filtrar apenas preços maiores que zero
 
             // Aplicar filtros
             if (min_price) {
@@ -224,9 +231,96 @@ class TokenListingController {
             // Ordenação
             query = query.orderBy(sort_by, sort_order);
 
+            // Aplicar paginação
+            query = query.limit(limit).offset(offset);
+
             const listings = await query;
-            // Retorna lista vazia se não encontrar resultados
-            return res.json(listings || []);
+
+            // Se não houver listings suficientes, buscar mais tokens NFT
+            if (listings.length < limit) {
+                const existingTokenIds = listings.map(l => l.nft_token_id);
+                
+                // Buscar tokens NFT que não têm listing
+                const newTokens = await RWANFTToken.query()
+                    .whereNotIn('id', existingTokenIds)
+                    .limit(limit - listings.length)
+                    .withGraphFetched('[owner, rwa]');
+
+                // Agrupar tokens por RWA para evitar duplicatas
+                const rwaTokens = new Map();
+                for (const token of newTokens) {
+                    if (token.rwa && !rwaTokens.has(token.rwa.id)) {
+                        rwaTokens.set(token.rwa.id, token);
+                    }
+                }
+
+                // Criar listings apenas para um token por RWA
+                for (const token of rwaTokens.values()) {
+                    // Calcular preço baseado no número do token e valor da propriedade
+                    let tokenPrice = token.original_purchase_price;
+                    
+                    if (!tokenPrice || tokenPrice === 0) {
+                        // Buscar o RWA associado ao token
+                        const rwa = await token.$relatedQuery('rwa');
+                        
+                        if (rwa) {
+                            // Calcular preço baseado no número do token e valor total da propriedade
+                            const totalTokens = rwa.total_tokens || 1; // Evitar divisão por zero
+                            const propertyValue = rwa.property_value || 0;
+                            
+                            // Preço por token = valor da propriedade / total de tokens
+                            tokenPrice = propertyValue / totalTokens;
+                            
+                            // Arredondar para 2 casas decimais
+                            tokenPrice = Math.round(tokenPrice * 100) / 100;
+                        }
+                    }
+
+                    // Só criar listing se o preço for maior que zero
+                    if (tokenPrice > 0) {
+                        const listing = await TokenListing.query().insert({
+                            nft_token_id: token.id,
+                            seller_id: token.owner_user_id,
+                            current_price: tokenPrice,
+                            original_purchase_price: tokenPrice,
+                            original_purchase_date: token.created_at.toISOString(),
+                            listing_status: 'active'
+                        });
+
+                        // Registrar o preço inicial no histórico
+                        await TokenPriceHistory.query().insert({
+                            token_listing_id: listing.id,
+                            price: tokenPrice,
+                            changed_by: token.owner_user_id,
+                            change_reason: 'Preço inicial calculado baseado no valor da propriedade'
+                        });
+
+                        // Adicionar o novo listing à lista
+                        listings.push(listing);
+                    }
+                }
+            }
+
+            // Buscar o total de listings únicos por RWA para paginação
+            const total = await TokenListing.query()
+                .where('current_price', '>', 0)
+                .where(builder => {
+                    if (min_price) builder.where('current_price', '>=', min_price);
+                    if (max_price) builder.where('current_price', '<=', max_price);
+                    if (status) builder.where('listing_status', status);
+                })
+                .distinctOn('nft_token_id')
+                .resultSize();
+
+            return res.json({
+                listings,
+                pagination: {
+                    total,
+                    page: parseInt(page),
+                    limit: parseInt(limit),
+                    pages: Math.ceil(total / limit)
+                }
+            });
         } catch (error) {
             console.error('Error searching listings:', error);
             return res.status(500).json({ error: 'Erro ao buscar listings' });
