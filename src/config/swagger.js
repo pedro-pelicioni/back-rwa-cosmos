@@ -4,84 +4,153 @@ const options = {
   definition: {
     openapi: '3.0.0',
     info: {
-      title: 'API de Tokenização de Imóveis',
+      title: 'Real Estate Tokenization API',
       version: '1.0.0',
-      description: 'API para gerenciamento de tokenização de imóveis',
+      description: 'API for managing real estate tokenization',
     },
     servers: [
       {
         url: 'http://localhost:3000',
-        description: 'Servidor de desenvolvimento',
+        description: 'Development server',
       },
     ],
     components: {
       schemas: {
-        RWA: {
+        User: {
           type: 'object',
-          required: ['name', 'gpsCoordinates', 'city', 'country', 'currentValue', 'totalTokens'],
           properties: {
             id: {
               type: 'integer',
-              description: 'ID do RWA',
+              description: 'User ID'
             },
-            userId: {
-              type: 'integer',
-              description: 'ID do usuário proprietário',
+            wallet_address: {
+              type: 'string',
+              description: 'User wallet address'
             },
             name: {
               type: 'string',
-              description: 'Nome do RWA',
+              description: 'User full name'
             },
-            gpsCoordinates: {
+            tax_id: {
               type: 'string',
-              description: 'Coordenadas GPS do RWA',
+              description: 'User tax ID (CPF)'
+            },
+            email: {
+              type: 'string',
+              description: 'User email'
+            },
+            phone: {
+              type: 'string',
+              description: 'User phone number'
+            },
+            status: {
+              type: 'string',
+              enum: ['active', 'inactive', 'blocked'],
+              description: 'User status'
+            },
+            kyc_status: {
+              type: 'string',
+              enum: ['pending', 'approved', 'rejected'],
+              description: 'User KYC status'
+            },
+            created_at: {
+              type: 'string',
+              format: 'date-time',
+              description: 'Creation date'
+            },
+            updated_at: {
+              type: 'string',
+              format: 'date-time',
+              description: 'Last update date'
+            }
+          }
+        },
+        RWA: {
+          type: 'object',
+          required: ['name', 'location', 'city', 'country', 'currentValue', 'totalTokens'],
+          properties: {
+            id: {
+              type: 'integer',
+              description: 'RWA ID',
+            },
+            userId: {
+              type: 'integer',
+              description: 'Owner user ID',
+            },
+            name: {
+              type: 'string',
+              description: 'Property name',
+            },
+            location: {
+              type: 'string',
+              description: 'Full property address',
             },
             city: {
               type: 'string',
-              description: 'Cidade do RWA',
+              description: 'Property city',
             },
             country: {
               type: 'string',
-              description: 'País do RWA',
+              description: 'Property country',
             },
             description: {
               type: 'string',
-              description: 'Descrição do RWA',
+              description: 'Detailed property description',
             },
             currentValue: {
               type: 'number',
-              description: 'Valor atual do RWA',
+              description: 'Current property value',
+              minimum: 0
             },
             totalTokens: {
               type: 'integer',
-              description: 'Total de tokens disponíveis',
+              description: 'Total available tokens',
+              minimum: 1
             },
             yearBuilt: {
               type: 'integer',
-              description: 'Ano de construção',
+              description: 'Property construction year',
             },
             sizeM2: {
               type: 'number',
-              description: 'Tamanho em metros quadrados',
+              description: 'Size in square meters',
+              minimum: 0
             },
             status: {
               type: 'string',
               enum: ['active', 'inactive', 'sold'],
-              description: 'Status do RWA',
+              description: 'Property status',
+              default: 'active'
             },
             geometry: {
               type: 'object',
-              description: 'Geometria do RWA em formato GeoJSON',
+              description: 'Property geographic coordinates',
+              properties: {
+                type: {
+                  type: 'string',
+                  enum: ['Point'],
+                  default: 'Point'
+                },
+                coordinates: {
+                  type: 'array',
+                  items: {
+                    type: 'number'
+                  },
+                  minItems: 2,
+                  maxItems: 2,
+                  description: '[longitude, latitude]'
+                }
+              }
             },
             createdAt: {
               type: 'string',
               format: 'date-time',
-              description: 'Data de criação',
+              description: 'Creation date',
             },
             updatedAt: {
               type: 'string',
               format: 'date-time',
-              description: 'Data de atualização',
+              description: 'Last update date',
             },
           },
         },
@@ -91,45 +160,45 @@ const options = {
           properties: {
             id: { 
               type: 'integer',
-              description: 'ID da imagem'
+              description: 'Image ID'
             },
             rwa_id: { 
               type: 'integer',
-              description: 'ID do RWA'
+              description: 'RWA ID'
             },
             title: { 
               type: 'string',
-              description: 'Título da imagem'
+              description: 'Image title'
             },
             description: { 
               type: 'string',
-              description: 'Descrição da imagem'
+              description: 'Image description'
             },
             cid_link: { 
               type: 'string',
-              description: 'Link IPFS da imagem'
+              description: 'IPFS image link'
             },
             file_path: { 
               type: 'string',
-              description: 'Caminho do arquivo'
+              description: 'File path'
             },
             image_data: { 
               type: 'string',
-              description: 'Imagem codificada em base64 (max 10MB)'
+              description: 'Base64 encoded image (max 10MB)'
             },
             display_order: { 
               type: 'integer',
-              description: 'Ordem de exibição'
+              description: 'Display order'
             },
             created_at: { 
               type: 'string',
               format: 'date-time',
-              description: 'Data de criação'
+              description: 'Creation date'
             },
             updated_at: { 
               type: 'string',
               format: 'date-time',
-              description: 'Data de atualização'
+              description: 'Last update date'
             }
           }
         },
@@ -139,46 +208,46 @@ const options = {
           properties: {
             id: { 
               type: 'integer',
-              description: 'ID da instalação'
+              description: 'Facility ID'
             },
             rwa_id: { 
               type: 'integer',
-              description: 'ID do RWA'
+              description: 'RWA ID'
             },
             name: { 
               type: 'string',
-              description: 'Nome da instalação'
+              description: 'Facility name'
             },
             description: { 
               type: 'string',
-              description: 'Descrição da instalação'
+              description: 'Facility description'
             },
             size_m2: { 
               type: 'number',
-              description: 'Tamanho em metros quadrados'
+              description: 'Size in square meters'
             },
             floor_number: { 
               type: 'integer',
-              description: 'Número do andar'
+              description: 'Floor number'
             },
             type: { 
               type: 'string',
-              description: 'Tipo da instalação (quarto, sala, cozinha, etc)'
+              description: 'Facility type (room, hall, kitchen, etc)'
             },
             status: { 
               type: 'string',
               enum: ['active', 'inactive', 'under_renovation'],
-              description: 'Status da instalação'
+              description: 'Facility status'
             },
             created_at: { 
               type: 'string',
               format: 'date-time',
-              description: 'Data de criação'
+              description: 'Creation date'
             },
             updated_at: { 
               type: 'string',
               format: 'date-time',
-              description: 'Data de atualização'
+              description: 'Last update date'
             }
           }
         },
@@ -188,33 +257,33 @@ const options = {
           properties: {
             id: { 
               type: 'integer',
-              description: 'ID do token'
+              description: 'Token ID'
             },
             rwa_id: { 
               type: 'integer',
-              description: 'ID do RWA'
+              description: 'RWA ID'
             },
             token_identifier: { 
               type: 'string',
-              description: 'Identificador único do token na blockchain'
+              description: 'Unique token identifier on blockchain'
             },
             owner_user_id: { 
               type: 'integer',
-              description: 'ID do usuário proprietário'
+              description: 'Owner user ID'
             },
             metadata_uri: { 
               type: 'string',
-              description: 'URI dos metadados do token'
+              description: 'Token metadata URI'
             },
             created_at: { 
               type: 'string',
               format: 'date-time',
-              description: 'Data de criação'
+              description: 'Creation date'
             },
             updated_at: { 
               type: 'string',
               format: 'date-time',
-              description: 'Data de atualização'
+              description: 'Last update date'
             }
           }
         },
@@ -224,36 +293,36 @@ const options = {
           properties: {
             id: { 
               type: 'integer',
-              description: 'ID do registro'
+              description: 'Record ID'
             },
             rwa_id: { 
               type: 'integer',
-              description: 'ID do RWA'
+              description: 'RWA ID'
             },
             token_id: { 
               type: 'integer',
-              description: 'ID do token NFT'
+              description: 'NFT token ID'
             },
             from_user_id: { 
               type: 'integer',
-              description: 'ID do usuário de origem'
+              description: 'Source user ID'
             },
             to_user_id: { 
               type: 'integer',
-              description: 'ID do usuário de destino'
+              description: 'Destination user ID'
             },
             quantity: { 
               type: 'integer',
-              description: 'Quantidade de tokens transferidos'
+              description: 'Number of tokens transferred'
             },
             transfer_date: { 
               type: 'string',
               format: 'date-time',
-              description: 'Data da transferência'
+              description: 'Transfer date'
             },
             tx_hash: { 
               type: 'string',
-              description: 'Hash da transação na blockchain'
+              description: 'Blockchain transaction hash'
             }
           }
         },
@@ -263,52 +332,52 @@ const options = {
           properties: {
             id: { 
               type: 'integer',
-              description: 'ID do listing'
+              description: 'Listing ID'
             },
             nft_token_id: { 
               type: 'integer',
-              description: 'ID do token NFT'
+              description: 'NFT token ID'
             },
             seller_id: { 
               type: 'integer',
-              description: 'ID do vendedor'
+              description: 'Seller ID'
             },
             current_price: { 
               type: 'number',
-              description: 'Preço atual do token'
+              description: 'Current token price'
             },
             original_purchase_price: { 
               type: 'number',
-              description: 'Preço original de compra'
+              description: 'Original purchase price'
             },
             original_purchase_date: { 
               type: 'string',
               format: 'date-time',
-              description: 'Data da compra original'
+              description: 'Original purchase date'
             },
             chain_transaction_metadata: { 
               type: 'object',
-              description: 'Metadados da transação na blockchain'
+              description: 'Blockchain transaction metadata'
             },
             listing_status: { 
               type: 'string',
               enum: ['active', 'sold', 'cancelled', 'expired'],
-              description: 'Status do listing'
+              description: 'Listing status'
             },
             available_until: { 
               type: 'string',
               format: 'date-time',
-              description: 'Data limite de disponibilidade'
+              description: 'Availability deadline'
             },
             created_at: { 
               type: 'string',
               format: 'date-time',
-              description: 'Data de criação'
+              description: 'Creation date'
             },
             updated_at: { 
               type: 'string',
               format: 'date-time',
-              description: 'Data de atualização'
+              description: 'Last update date'
             },
             nftToken: {
               $ref: '#/components/schemas/RWANFTToken'
@@ -330,28 +399,28 @@ const options = {
           properties: {
             id: { 
               type: 'integer',
-              description: 'ID do registro'
+              description: 'Record ID'
             },
             token_listing_id: { 
               type: 'integer',
-              description: 'ID do listing'
+              description: 'Listing ID'
             },
             price: { 
               type: 'number',
-              description: 'Preço registrado'
+              description: 'Recorded price'
             },
             changed_by: { 
               type: 'integer',
-              description: 'ID do usuário que alterou o preço'
+              description: 'User ID who changed the price'
             },
             change_reason: { 
               type: 'string',
-              description: 'Motivo da alteração'
+              description: 'Change reason'
             },
             created_at: { 
               type: 'string',
               format: 'date-time',
-              description: 'Data da alteração'
+              description: 'Change date'
             },
             changedByUser: {
               $ref: '#/components/schemas/User'
@@ -363,7 +432,7 @@ const options = {
           properties: {
             error: {
               type: 'string',
-              description: 'Mensagem de erro',
+              description: 'Error message',
             },
           },
         },
@@ -372,55 +441,55 @@ const options = {
           properties: {
             id: {
               type: 'integer',
-              description: 'ID do registro KYC'
+              description: 'KYC record ID'
             },
             wallet_address: {
               type: 'string',
-              description: 'Endereço da wallet do usuário'
+              description: 'User wallet address'
             },
-            nome: {
+            name: {
               type: 'string',
-              description: 'Nome completo do usuário'
+              description: 'User full name'
             },
-            cpf: {
+            tax_id: {
               type: 'string',
-              description: 'CPF do usuário'
+              description: 'User tax ID (CPF)'
             },
-            documento_frente_cid: {
+            document_front_cid: {
               type: 'string',
-              description: 'CID do documento de frente no IPFS'
+              description: 'ID document front CID on IPFS'
             },
-            documento_verso_cid: {
+            document_back_cid: {
               type: 'string',
-              description: 'CID do documento de verso no IPFS'
+              description: 'ID document back CID on IPFS'
             },
             selfie_1_cid: {
               type: 'string',
-              description: 'CID da primeira selfie no IPFS'
+              description: 'First selfie with document CID on IPFS'
             },
             selfie_2_cid: {
               type: 'string',
-              description: 'CID da segunda selfie no IPFS'
+              description: 'Second selfie with document CID on IPFS'
             },
             status: {
               type: 'string',
-              enum: ['pendente', 'aprovado', 'rejeitado'],
-              description: 'Status do KYC'
+              enum: ['pending', 'approved', 'rejected'],
+              description: 'KYC status'
             },
-            etapa: {
+            step: {
               type: 'string',
-              enum: ['dados_basicos', 'documentos'],
-              description: 'Etapa atual do processo de KYC'
+              enum: ['basic_data', 'documents'],
+              description: 'Current KYC step'
             },
             created_at: {
               type: 'string',
               format: 'date-time',
-              description: 'Data de criação'
+              description: 'Creation date'
             },
             updated_at: {
               type: 'string',
               format: 'date-time',
-              description: 'Data de atualização'
+              description: 'Last update date'
             }
           }
         },
@@ -435,14 +504,14 @@ const options = {
           type: 'apiKey',
           in: 'header',
           name: 'Authorization',
-          description: 'Token JWT obtido após autenticação via wallet'
+          description: 'JWT token obtained after wallet authentication'
         }
       },
     },
     paths: {
       '/api/rwa/tokens/sale/initiate': {
         post: {
-          summary: 'Iniciar uma venda de token',
+          summary: 'Initiate a token sale',
           tags: ['Token Sales'],
           security: [{ bearerAuth: [] }],
           requestBody: {
@@ -462,16 +531,16 @@ const options = {
             }
           },
           responses: {
-            201: { description: 'Venda iniciada com sucesso' },
-            403: { description: 'Sem permissão para vender este token' },
-            404: { description: 'Token não encontrado' },
-            500: { description: 'Erro ao iniciar venda' }
+            201: { description: 'Sale initiated successfully' },
+            403: { description: 'No permission to sell this token' },
+            404: { description: 'Token not found' },
+            500: { description: 'Error initiating sale' }
           }
         }
       },
       '/api/rwa/tokens/sale/confirm': {
         post: {
-          summary: 'Confirmar uma venda de token',
+          summary: 'Confirm a token sale',
           tags: ['Token Sales'],
           security: [{ bearerAuth: [] }],
           requestBody: {
@@ -491,16 +560,16 @@ const options = {
             }
           },
           responses: {
-            200: { description: 'Venda confirmada com sucesso' },
-            400: { description: 'Venda não está pendente' },
-            404: { description: 'Venda não encontrada' },
-            500: { description: 'Erro ao confirmar venda' }
+            200: { description: 'Sale confirmed successfully' },
+            400: { description: 'Sale is not pending' },
+            404: { description: 'Sale not found' },
+            500: { description: 'Error confirming sale' }
           }
         }
       },
       '/api/rwa/tokens/sale/cancel/{sale_id}': {
         post: {
-          summary: 'Cancelar uma venda de token',
+          summary: 'Cancel a token sale',
           tags: ['Token Sales'],
           security: [{ bearerAuth: [] }],
           parameters: [
@@ -512,17 +581,17 @@ const options = {
             }
           ],
           responses: {
-            200: { description: 'Venda cancelada com sucesso' },
-            400: { description: 'Venda não pode ser cancelada' },
-            403: { description: 'Sem permissão para cancelar esta venda' },
-            404: { description: 'Venda não encontrada' },
-            500: { description: 'Erro ao cancelar venda' }
+            200: { description: 'Sale cancelled successfully' },
+            400: { description: 'Sale cannot be cancelled' },
+            403: { description: 'No permission to cancel this sale' },
+            404: { description: 'Sale not found' },
+            500: { description: 'Error cancelling sale' }
           }
         }
       },
       '/api/rwa/tokens/sale/{sale_id}': {
         get: {
-          summary: 'Obter uma venda de token por ID',
+          summary: 'Get a token sale by ID',
           tags: ['Token Sales'],
           security: [{ bearerAuth: [] }],
           parameters: [
@@ -534,19 +603,19 @@ const options = {
             }
           ],
           responses: {
-            200: { description: 'Venda encontrada com sucesso' },
-            404: { description: 'Venda não encontrada' },
-            500: { description: 'Erro ao obter venda' }
+            200: { description: 'Sale found successfully' },
+            404: { description: 'Sale not found' },
+            500: { description: 'Error getting sale' }
           }
         }
       },
       '/marketplace/listings': {
         get: {
-          summary: 'Lista todos os tokens disponíveis para venda',
+          summary: 'List all tokens available for sale',
           tags: ['Marketplace'],
           responses: {
             200: {
-              description: 'Lista de tokens disponíveis',
+              description: 'List of available tokens',
               content: {
                 'application/json': {
                   schema: {
@@ -558,11 +627,11 @@ const options = {
                 }
               }
             },
-            500: { description: 'Erro ao listar tokens' }
+            500: { description: 'Error listing tokens' }
           }
         },
         post: {
-          summary: 'Cria um novo listing para venda de token',
+          summary: 'Create a new token listing for sale',
           tags: ['Marketplace'],
           security: [{ bearerAuth: [] }],
           requestBody: {
@@ -585,16 +654,16 @@ const options = {
             }
           },
           responses: {
-            201: { description: 'Listing criado com sucesso' },
-            400: { description: 'Token já está listado' },
-            403: { description: 'Token não pertence ao usuário' },
-            500: { description: 'Erro ao criar listing' }
+            201: { description: 'Listing created successfully' },
+            400: { description: 'Token is already listed' },
+            403: { description: 'Token does not belong to user' },
+            500: { description: 'Error creating listing' }
           }
         }
       },
       '/marketplace/listings/search': {
         get: {
-          summary: 'Busca listings com filtros',
+          summary: 'Search listings with filters',
           tags: ['Marketplace'],
           parameters: [
             {
@@ -634,7 +703,7 @@ const options = {
           ],
           responses: {
             200: {
-              description: 'Lista de listings filtrados',
+              description: 'List of filtered listings',
               content: {
                 'application/json': {
                   schema: {
@@ -646,18 +715,18 @@ const options = {
                 }
               }
             },
-            500: { description: 'Erro ao buscar listings' }
+            500: { description: 'Error searching listings' }
           }
         }
       },
       '/marketplace/my-listings': {
         get: {
-          summary: 'Lista os tokens do usuário logado',
+          summary: 'List logged user tokens',
           tags: ['Marketplace'],
           security: [{ bearerAuth: [] }],
           responses: {
             200: {
-              description: 'Lista de tokens do usuário',
+              description: 'List of user tokens',
               content: {
                 'application/json': {
                   schema: {
@@ -669,13 +738,13 @@ const options = {
                 }
               }
             },
-            500: { description: 'Erro ao listar tokens' }
+            500: { description: 'Error listing tokens' }
           }
         }
       },
       '/marketplace/listings/{listing_id}': {
         get: {
-          summary: 'Obtém detalhes de um listing específico',
+          summary: 'Get details of a specific listing',
           tags: ['Marketplace'],
           parameters: [
             {
@@ -687,7 +756,7 @@ const options = {
           ],
           responses: {
             200: {
-              description: 'Detalhes do listing',
+              description: 'Listing details',
               content: {
                 'application/json': {
                   schema: {
@@ -696,14 +765,14 @@ const options = {
                 }
               }
             },
-            404: { description: 'Listing não encontrado' },
-            500: { description: 'Erro ao obter detalhes' }
+            404: { description: 'Listing not found' },
+            500: { description: 'Error getting details' }
           }
         }
       },
       '/marketplace/listings/{listing_id}/price': {
         patch: {
-          summary: 'Atualiza o preço de um listing',
+          summary: 'Update a listing price',
           tags: ['Marketplace'],
           security: [{ bearerAuth: [] }],
           parameters: [
@@ -730,16 +799,16 @@ const options = {
             }
           },
           responses: {
-            200: { description: 'Preço atualizado com sucesso' },
-            403: { description: 'Apenas o vendedor pode atualizar o preço' },
-            404: { description: 'Listing não encontrado' },
-            500: { description: 'Erro ao atualizar preço' }
+            200: { description: 'Price updated successfully' },
+            403: { description: 'Only seller can update price' },
+            404: { description: 'Listing not found' },
+            500: { description: 'Error updating price' }
           }
         }
       },
       '/marketplace/listings/{listing_id}/cancel': {
         patch: {
-          summary: 'Cancela um listing',
+          summary: 'Cancel a listing',
           tags: ['Marketplace'],
           security: [{ bearerAuth: [] }],
           parameters: [
@@ -751,16 +820,16 @@ const options = {
             }
           ],
           responses: {
-            200: { description: 'Listing cancelado com sucesso' },
-            403: { description: 'Apenas o vendedor pode cancelar o listing' },
-            404: { description: 'Listing não encontrado' },
-            500: { description: 'Erro ao cancelar listing' }
+            200: { description: 'Listing cancelled successfully' },
+            403: { description: 'Only seller can cancel listing' },
+            404: { description: 'Listing not found' },
+            500: { description: 'Error cancelling listing' }
           }
         }
       },
       '/marketplace/listings/{listing_id}/status': {
         patch: {
-          summary: 'Atualiza o status de um listing',
+          summary: 'Update a listing status',
           tags: ['Marketplace'],
           security: [{ bearerAuth: [] }],
           parameters: [
@@ -790,16 +859,16 @@ const options = {
             }
           },
           responses: {
-            200: { description: 'Status atualizado com sucesso' },
-            403: { description: 'Sem permissão para atualizar' },
-            404: { description: 'Listing não encontrado' },
-            500: { description: 'Erro ao atualizar status' }
+            200: { description: 'Status updated successfully' },
+            403: { description: 'No permission to update' },
+            404: { description: 'Listing not found' },
+            500: { description: 'Error updating status' }
           }
         }
       },
       '/marketplace/listings/{listing_id}/price-history': {
         get: {
-          summary: 'Obtém o histórico de preços de um token',
+          summary: 'Get token price history',
           tags: ['Marketplace'],
           parameters: [
             {
@@ -811,7 +880,7 @@ const options = {
           ],
           responses: {
             200: {
-              description: 'Histórico de preços',
+              description: 'Price history',
               content: {
                 'application/json': {
                   schema: {
@@ -823,13 +892,13 @@ const options = {
                 }
               }
             },
-            500: { description: 'Erro ao obter histórico' }
+            500: { description: 'Error getting history' }
           }
         }
       },
       '/marketplace/tokens/{nft_token_id}/availability': {
         get: {
-          summary: 'Verifica se um token está disponível para venda',
+          summary: 'Check if a token is available for sale',
           tags: ['Marketplace'],
           parameters: [
             {
@@ -841,7 +910,7 @@ const options = {
           ],
           responses: {
             200: {
-              description: 'Status de disponibilidade do token',
+              description: 'Token availability status',
               content: {
                 'application/json': {
                   schema: {
@@ -856,15 +925,15 @@ const options = {
                 }
               }
             },
-            500: { description: 'Erro ao verificar disponibilidade' }
+            500: { description: 'Error checking availability' }
           }
         }
       },
       '/api/users/kyc/basic': {
         post: {
-          summary: 'Enviar dados básicos para KYC (etapa 1)',
-          description: 'Envia nome e CPF para iniciar o processo de KYC',
-          tags: ['Usuários'],
+          summary: 'Submit basic KYC data (step 1)',
+          description: 'Submit name and tax ID to start KYC process',
+          tags: ['Users'],
           security: [{ walletAuth: [] }],
           requestBody: {
             required: true,
@@ -872,15 +941,15 @@ const options = {
               'application/json': {
                 schema: {
                   type: 'object',
-                  required: ['nome', 'cpf'],
+                  required: ['name', 'tax_id'],
                   properties: {
-                    nome: {
+                    name: {
                       type: 'string',
-                      description: 'Nome completo do usuário'
+                      description: 'User full name'
                     },
-                    cpf: {
+                    tax_id: {
                       type: 'string',
-                      description: 'CPF do usuário'
+                      description: 'User tax ID (CPF)'
                     }
                   }
                 }
@@ -889,7 +958,7 @@ const options = {
           },
           responses: {
             201: {
-              description: 'Dados básicos enviados com sucesso',
+              description: 'Basic data submitted successfully',
               content: {
                 'application/json': {
                   schema: {
@@ -897,11 +966,11 @@ const options = {
                     properties: {
                       message: {
                         type: 'string',
-                        example: 'Dados básicos enviados com sucesso'
+                        example: 'Basic data submitted successfully'
                       },
                       kyc_id: {
                         type: 'integer',
-                        description: 'ID do registro KYC'
+                        description: 'KYC record ID'
                       }
                     }
                   }
@@ -909,7 +978,7 @@ const options = {
               }
             },
             400: {
-              description: 'Dados inválidos ou KYC já iniciado',
+              description: 'Invalid data or KYC already started',
               content: {
                 'application/json': {
                   schema: {
@@ -919,19 +988,19 @@ const options = {
               }
             },
             401: {
-              description: 'Não autorizado'
+              description: 'Unauthorized'
             },
             500: {
-              description: 'Erro interno do servidor'
+              description: 'Internal server error'
             }
           }
         }
       },
       '/api/users/kyc/documents': {
         post: {
-          summary: 'Enviar documentos para KYC (etapa 2)',
-          description: 'Envia documentos e selfies para completar o KYC',
-          tags: ['Usuários'],
+          summary: 'Submit KYC documents (step 2)',
+          description: 'Submit documents and selfies to complete KYC',
+          tags: ['Users'],
           security: [{ walletAuth: [] }],
           requestBody: {
             required: true,
@@ -940,25 +1009,25 @@ const options = {
                 schema: {
                   type: 'object',
                   properties: {
-                    documento_frente: {
+                    document_front: {
                       type: 'string',
                       format: 'binary',
-                      description: 'Frente do documento de identidade'
+                      description: 'ID document front'
                     },
-                    documento_verso: {
+                    document_back: {
                       type: 'string',
                       format: 'binary',
-                      description: 'Verso do documento de identidade'
+                      description: 'ID document back'
                     },
                     selfie_1: {
                       type: 'string',
                       format: 'binary',
-                      description: 'Primeira selfie com documento'
+                      description: 'First selfie with document'
                     },
                     selfie_2: {
                       type: 'string',
                       format: 'binary',
-                      description: 'Segunda selfie com documento'
+                      description: 'Second selfie with document'
                     }
                   }
                 }
@@ -967,7 +1036,7 @@ const options = {
           },
           responses: {
             200: {
-              description: 'Documentos enviados com sucesso',
+              description: 'Documents submitted successfully',
               content: {
                 'application/json': {
                   schema: {
@@ -975,11 +1044,11 @@ const options = {
                     properties: {
                       message: {
                         type: 'string',
-                        example: 'Documentos enviados com sucesso'
+                        example: 'Documents submitted successfully'
                       },
                       kyc_id: {
                         type: 'integer',
-                        description: 'ID do registro KYC'
+                        description: 'KYC record ID'
                       }
                     }
                   }
@@ -987,7 +1056,7 @@ const options = {
               }
             },
             400: {
-              description: 'Dados inválidos ou etapa 1 não concluída',
+              description: 'Invalid data or step 1 not completed',
               content: {
                 'application/json': {
                   schema: {
@@ -997,23 +1066,23 @@ const options = {
               }
             },
             401: {
-              description: 'Não autorizado'
+              description: 'Unauthorized'
             },
             500: {
-              description: 'Erro interno do servidor'
+              description: 'Internal server error'
             }
           }
         }
       },
       '/api/users/kyc': {
         get: {
-          summary: 'Obter status KYC',
-          description: 'Retorna o status e etapa atual da verificação KYC do usuário',
-          tags: ['Usuários'],
+          summary: 'Get KYC status',
+          description: 'Returns current KYC verification status and step',
+          tags: ['Users'],
           security: [{ walletAuth: [] }],
           responses: {
             200: {
-              description: 'Status KYC retornado com sucesso',
+              description: 'KYC status returned successfully',
               content: {
                 'application/json': {
                   schema: {
@@ -1023,10 +1092,10 @@ const options = {
               }
             },
             401: {
-              description: 'Não autorizado'
+              description: 'Unauthorized'
             },
             404: {
-              description: 'KYC não encontrado',
+              description: 'KYC not found',
               content: {
                 'application/json': {
                   schema: {
@@ -1036,14 +1105,14 @@ const options = {
               }
             },
             500: {
-              description: 'Erro interno do servidor'
+              description: 'Internal server error'
             }
           }
         }
       }
     }
   },
-  apis: ['./src/routes/*.js'], // arquivos que contêm as anotações
+  apis: ['./src/routes/*.js'], // files containing annotations
 };
 
 const specs = swaggerJsdoc(options);
