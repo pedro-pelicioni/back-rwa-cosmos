@@ -1,4 +1,33 @@
 const RWA = require('../models/RWA');
+const db = require('../database/knex');
+const RWANFTToken = require('../models/RWANFTToken');
+const axios = require('axios');
+
+// Função para obter coordenadas de uma cidade
+async function getCoordinatesFromCity(city, country) {
+    try {
+        const query = `${city}, ${country}`;
+        const response = await axios.get(`https://nominatim.openstreetmap.org/search`, {
+            params: {
+                q: query,
+                format: 'json',
+                limit: 1
+            },
+            headers: {
+                'User-Agent': 'RWA-Real-Estate-App'
+            }
+        });
+
+        if (response.data && response.data.length > 0) {
+            const { lat, lon } = response.data[0];
+            return `${lon}, ${lat}`;
+        }
+        return null;
+    } catch (error) {
+        console.error('Erro ao obter coordenadas:', error);
+        return null;
+    }
+}
 
 // Função para converter snake_case para camelCase
 function snakeToCamel(str) {
@@ -75,6 +104,15 @@ class RWAController {
                 console.log('Convertendo location para gps_coordinates');
                 rwaData.gpsCoordinates = rwaData.location;
                 delete rwaData.location;
+            }
+
+            // Se gpsCoordinates for apenas nome da cidade, converter para coordenadas
+            if (rwaData.gpsCoordinates && !rwaData.gpsCoordinates.includes(',')) {
+                console.log('Convertendo nome da cidade para coordenadas GPS');
+                const coordinates = await getCoordinatesFromCity(rwaData.city, rwaData.country);
+                if (coordinates) {
+                    rwaData.gpsCoordinates = coordinates;
+                }
             }
 
             // Converter gpsCoordinates para geometry se fornecido
@@ -395,6 +433,102 @@ class RWAController {
             
             res.json(convertToCamelCase(user));
         } catch (error) {
+            res.status(500).json({ error: error.message });
+        }
+    }
+
+    static async transferToken(req, res) {
+        try {
+            const { tokenId } = req.params;
+            const { pricePerToken } = req.body;
+            const newOwnerId = req.user.id;
+
+            console.log('\n=== INÍCIO DA TRANSFERÊNCIA DE TOKEN ===');
+            console.log('Dados recebidos:');
+            console.log('- Token ID:', tokenId);
+            console.log('- Preço por token:', pricePerToken);
+            console.log('- Novo dono (ID):', newOwnerId);
+            console.log('- Headers:', JSON.stringify(req.headers, null, 2));
+            console.log('- Body completo:', JSON.stringify(req.body, null, 2));
+
+            const trx = await db.transaction();
+            console.log('\n=== INICIANDO TRANSAÇÃO ===');
+
+            try {
+                // Buscar o token
+                console.log('\n=== BUSCANDO TOKEN ===');
+                const token = await RWANFTToken.query(trx)
+                    .findById(tokenId);
+                    
+                if (!token) {
+                    console.log('Token não encontrado');
+                    throw new Error('Token não encontrado');
+                }
+                console.log('Token encontrado:', JSON.stringify(token, null, 2));
+
+                // Atualizar o dono do token
+                console.log('\n=== ATUALIZANDO DONO DO TOKEN ===');
+                console.log('Dono atual:', token.owner_user_id);
+                console.log('Novo dono:', newOwnerId);
+                
+                const updatedToken = await RWANFTToken.query(trx)
+                    .patchAndFetchById(tokenId, {
+                        owner_user_id: newOwnerId
+                    });
+                console.log('Token atualizado:', JSON.stringify(updatedToken, null, 2));
+
+                // Registrar a transação
+                console.log('\n=== REGISTRANDO TRANSAÇÃO ===');
+                const transactionData = {
+                    token_id: tokenId,
+                    from_user_id: token.owner_user_id,
+                    to_user_id: newOwnerId,
+                    transaction_type: 'sale',
+                    price_per_token: pricePerToken,
+                    created_at: new Date()
+                };
+                console.log('Dados da transação:', JSON.stringify(transactionData, null, 2));
+                
+                await trx('rwa_token_transactions').insert(transactionData);
+                console.log('Transação registrada com sucesso');
+
+                // Criar registro da venda
+                console.log('\n=== CRIANDO REGISTRO DE VENDA ===');
+                const saleData = {
+                    rwa_id: token.rwa_id,
+                    token_id: token.id,
+                    seller_id: token.owner_user_id,
+                    buyer_id: newOwnerId,
+                    quantity: 1,
+                    price_per_token: pricePerToken,
+                    total_price: pricePerToken,
+                    status: 'completed',
+                    created_at: new Date()
+                };
+                console.log('Dados da venda:', JSON.stringify(saleData, null, 2));
+                
+                await trx('rwa_token_sales').insert(saleData);
+                console.log('Venda registrada com sucesso');
+
+                await trx.commit();
+                console.log('\n=== TRANSAÇÃO CONCLUÍDA COM SUCESSO ===');
+                
+                const response = convertToCamelCase(updatedToken);
+                console.log('\n=== RESPOSTA ENVIADA ===');
+                console.log(JSON.stringify(response, null, 2));
+                
+                res.json(response);
+            } catch (error) {
+                console.error('\n=== ERRO DURANTE A TRANSAÇÃO ===');
+                console.error('Erro:', error);
+                console.error('Stack:', error.stack);
+                await trx.rollback();
+                throw error;
+            }
+        } catch (error) {
+            console.error('\n=== ERRO AO TRANSFERIR TOKEN ===');
+            console.error('Erro:', error);
+            console.error('Stack:', error.stack);
             res.status(500).json({ error: error.message });
         }
     }

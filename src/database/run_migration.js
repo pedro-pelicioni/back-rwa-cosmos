@@ -7,7 +7,7 @@ async function runMigration() {
     // Lê o arquivo SQL
     const sqlFile = path.join(__dirname, 'migrations', '010_update_kyc_table.sql');
     const sql = fs.readFileSync(sqlFile, 'utf8');
-
+    
     // Executa a migração
     await pool.query(sql);
     console.log('Migração executada com sucesso!');

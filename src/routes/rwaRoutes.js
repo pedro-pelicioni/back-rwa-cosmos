@@ -80,24 +80,54 @@ const jwtAuth = require('../middleware/jwtAuth');
  *             properties:
  *               name:
  *                 type: string
+ *                 description: Nome do imóvel
  *               location:
  *                 type: string
+ *                 description: Endereço completo do imóvel
  *               city:
  *                 type: string
+ *                 description: Cidade do imóvel
  *               country:
  *                 type: string
+ *                 description: País do imóvel
  *               description:
  *                 type: string
+ *                 description: Descrição detalhada do imóvel
  *               currentValue:
  *                 type: number
+ *                 description: Valor atual do imóvel
+ *                 minimum: 0
  *               totalTokens:
  *                 type: integer
+ *                 description: Total de tokens disponíveis
+ *                 minimum: 1
  *               yearBuilt:
  *                 type: integer
+ *                 description: Ano de construção do imóvel
  *               sizeM2:
  *                 type: number
+ *                 description: Tamanho em metros quadrados
+ *                 minimum: 0
+ *               status:
+ *                 type: string
+ *                 enum: [active, inactive, sold]
+ *                 description: Status do imóvel
+ *                 default: active
  *               geometry:
  *                 type: object
+ *                 description: Coordenadas geográficas do imóvel
+ *                 properties:
+ *                   type:
+ *                     type: string
+ *                     enum: [Point]
+ *                     default: Point
+ *                   coordinates:
+ *                     type: array
+ *                     items:
+ *                       type: number
+ *                     minItems: 2
+ *                     maxItems: 2
+ *                     description: [longitude, latitude]
  *     responses:
  *       201:
  *         description: RWA criado com sucesso
@@ -352,6 +382,9 @@ router.put('/:id', jwtAuth, RWAController.update);
  *         description: Erro interno do servidor
  */
 router.delete('/:id', jwtAuth, RWAController.delete);
+
+// Transferir token
+router.post('/tokens/:tokenId/transfer', jwtAuth, RWAController.transferToken);
 
 console.log('foi 1');
 // Rotas protegidas

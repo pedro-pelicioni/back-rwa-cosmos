@@ -1,42 +1,102 @@
 const RWATokenSale = require('../models/RWATokenSale');
 const RWANFTToken = require('../models/RWANFTToken');
 const RWA = require('../models/RWA');
+const db = require('../database/knex');
 
 class RWATokenSaleController {
   // Iniciar venda de token
   async initiate(req, res) {
-    const { token_id, quantity, price_per_token } = req.body;
-    const seller_id = req.user.id;
+    const { rwa_id, quantity, price_per_token } = req.body;
+    const buyer_id = req.user.id;
 
     try {
-      // Verificar se o token existe e pertence ao vendedor
-      const token = await RWANFTToken.query()
-        .where('id', token_id)
-        .where('owner_user_id', seller_id)
-        .first();
-
-      if (!token) {
-        return res.status(403).json({ error: 'Token não encontrado ou não pertence ao usuário' });
+      // Validar campos obrigatórios
+      if (!rwa_id) {
+        return res.status(400).json({ error: 'rwa_id é obrigatório' });
       }
 
-      // Calcular preço total
-      const total_price = quantity * price_per_token;
+      if (!quantity || quantity < 1) {
+        return res.status(400).json({ error: 'quantity deve ser maior que zero' });
+      }
 
-      // Criar a venda
-      const sale = await RWATokenSale.query().insert({
-        token_id,
-        seller_id,
-        quantity,
-        price_per_token,
-        total_price,
-        status: 'pending',
-        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 horas
-      });
+      if (!price_per_token || price_per_token <= 0) {
+        return res.status(400).json({ error: 'price_per_token deve ser maior que zero' });
+      }
 
-      return res.status(201).json(sale);
+      console.log('=== INÍCIO DA VENDA DE TOKENS ===');
+      console.log('RWA ID:', rwa_id);
+      console.log('Quantidade:', quantity);
+      console.log('Preço por token:', price_per_token);
+      console.log('Comprador:', buyer_id);
+
+      // Buscar os tokens disponíveis do RWA
+      const tokens = await RWANFTToken.query()
+        .where('rwa_id', rwa_id)
+        .where('owner_user_id', '!=', buyer_id)
+        .limit(quantity);
+
+      if (tokens.length < quantity) {
+        return res.status(400).json({ 
+          error: 'Quantidade de tokens disponível insuficiente' 
+        });
+      }
+
+      // Iniciar transação
+      const trx = await db.transaction();
+
+      try {
+        // Transferir cada token para o comprador
+        for (const token of tokens) {
+          // Atualizar o dono do token
+          await RWANFTToken.query(trx)
+            .patchAndFetchById(token.id, {
+              owner_user_id: buyer_id
+            });
+
+          // Registrar a transação
+          await trx('rwa_token_transactions').insert({
+            token_id: token.id,
+            from_user_id: token.owner_user_id,
+            to_user_id: buyer_id,
+            transaction_type: 'sale',
+            price_per_token: price_per_token,
+            created_at: new Date()
+          });
+        }
+
+        // Criar registro da venda
+        const sale = await RWATokenSale.query(trx).insert({
+          rwa_id,
+          seller_id: tokens[0].owner_user_id, // Vendedor é o dono original dos tokens
+          buyer_id,
+          quantity,
+          price_per_token,
+          total_price: quantity * price_per_token,
+          status: 'completed',
+          transaction_hash: null,
+          signature: null,
+          created_at: new Date()
+        });
+
+        await trx.commit();
+
+        console.log('=== VENDA CONCLUÍDA COM SUCESSO ===');
+        console.log('Venda:', sale);
+        console.log('Tokens transferidos:', tokens.length);
+
+        return res.status(201).json({
+          sale,
+          tokens: tokens.map(t => t.id)
+        });
+
+      } catch (error) {
+        await trx.rollback();
+        throw error;
+      }
+
     } catch (error) {
-      console.error('Erro ao iniciar venda:', error);
-      return res.status(500).json({ error: 'Erro ao iniciar venda' });
+      console.error('Erro ao processar venda:', error);
+      return res.status(500).json({ error: 'Erro ao processar venda' });
     }
   }
 

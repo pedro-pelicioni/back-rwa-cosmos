@@ -333,6 +333,42 @@ class RWA extends Model {
             throw new Error(`Erro ao buscar usuário: ${error.message}`);
         }
     }
+
+    static async transferToken(tokenId, newOwnerId) {
+        const trx = await db.transaction();
+        try {
+            const RWANFTToken = require('./RWANFTToken');
+            
+            // Buscar o token
+            const token = await RWANFTToken.query(trx)
+                .findById(tokenId);
+                
+            if (!token) {
+                throw new Error('Token não encontrado');
+            }
+
+            // Atualizar o dono do token
+            const updatedToken = await RWANFTToken.query(trx)
+                .patchAndFetchById(tokenId, {
+                    owner_user_id: newOwnerId
+                });
+
+            // Registrar a transação
+            await trx('rwa_token_transactions').insert({
+                token_id: tokenId,
+                from_user_id: token.owner_user_id,
+                to_user_id: newOwnerId,
+                transaction_type: 'transfer',
+                created_at: new Date()
+            });
+
+            await trx.commit();
+            return updatedToken;
+        } catch (error) {
+            await trx.rollback();
+            throw new Error(`Erro ao transferir token: ${error.message}`);
+        }
+    }
 }
 
 module.exports = RWA; 

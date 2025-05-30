@@ -1,0 +1,1 @@
+router.post('/tokens/:tokenId/transfer', authMiddleware, RWAController.transferToken); 
