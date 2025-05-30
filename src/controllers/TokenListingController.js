@@ -209,116 +209,46 @@ class TokenListingController {
         } = req.query;
 
         try {
-            // Calcular offset para paginação
-            const offset = (page - 1) * limit;
-
-            // Primeiro, buscar todos os listings existentes
-            let query = TokenListing.query()
-                .withGraphFetched('[nftToken, seller, priceHistory]')
-                .where('current_price', '>', 0); // Filtrar apenas preços maiores que zero
-
-            // Aplicar filtros
-            if (min_price) {
-                query = query.where('current_price', '>=', min_price);
-            }
-            if (max_price) {
-                query = query.where('current_price', '<=', max_price);
-            }
-            if (status) {
-                query = query.where('listing_status', status);
-            }
-
-            // Ordenação
-            query = query.orderBy(sort_by, sort_order);
-
-            // Aplicar paginação
-            query = query.limit(limit).offset(offset);
-
-            const listings = await query;
-
-            // Se não houver listings suficientes, buscar mais tokens NFT
-            if (listings.length < limit) {
-                const existingTokenIds = listings.map(l => l.nft_token_id);
-                
-                // Buscar tokens NFT que não têm listing
-                const newTokens = await RWANFTToken.query()
-                    .whereNotIn('id', existingTokenIds)
-                    .limit(limit - listings.length)
-                    .withGraphFetched('[owner, rwa]');
-
-                // Agrupar tokens por RWA para evitar duplicatas
-                const rwaTokens = new Map();
-                for (const token of newTokens) {
-                    if (token.rwa && !rwaTokens.has(token.rwa.id)) {
-                        rwaTokens.set(token.rwa.id, token);
-                    }
-                }
-
-                // Criar listings apenas para um token por RWA
-                for (const token of rwaTokens.values()) {
-                    // Calcular preço baseado no número do token e valor da propriedade
-                    let tokenPrice = token.original_purchase_price;
-                    
-                    if (!tokenPrice || tokenPrice === 0) {
-                        // Buscar o RWA associado ao token
-                        const rwa = await token.$relatedQuery('rwa');
-                        
-                        if (rwa) {
-                            // Calcular preço baseado no número do token e valor total da propriedade
-                            const totalTokens = rwa.total_tokens || 1; // Evitar divisão por zero
-                            const propertyValue = rwa.property_value || 0;
-                            
-                            // Preço por token = valor da propriedade / total de tokens
-                            tokenPrice = propertyValue / totalTokens;
-                            
-                            // Arredondar para 2 casas decimais
-                            tokenPrice = Math.round(tokenPrice * 100) / 100;
-                        }
-                    }
-
-                    // Só criar listing se o preço for maior que zero
-                    if (tokenPrice > 0) {
-                        const listing = await TokenListing.query().insert({
-                            nft_token_id: token.id,
-                            seller_id: token.owner_user_id,
-                            current_price: tokenPrice,
-                            original_purchase_price: tokenPrice,
-                            original_purchase_date: token.created_at.toISOString(),
-                            listing_status: 'active'
-                        });
-
-                        // Registrar o preço inicial no histórico
-                        await TokenPriceHistory.query().insert({
-                            token_listing_id: listing.id,
-                            price: tokenPrice,
-                            changed_by: token.owner_user_id,
-                            change_reason: 'Preço inicial calculado baseado no valor da propriedade'
-                        });
-
-                        // Adicionar o novo listing à lista
-                        listings.push(listing);
-                    }
-                }
-            }
-
-            // Buscar o total de listings únicos por RWA para paginação
-            const total = await TokenListing.query()
+            console.log('Iniciando busca de listings com parâmetros:', { status, min_price, max_price, page, limit });
+            
+            // Buscar apenas listings ativos com seus relacionamentos
+            const listings = await TokenListing.query()
+                .withGraphFetched('[nftToken.[rwa], seller]')
+                .where('listing_status', status)
                 .where('current_price', '>', 0)
-                .where(builder => {
-                    if (min_price) builder.where('current_price', '>=', min_price);
-                    if (max_price) builder.where('current_price', '<=', max_price);
-                    if (status) builder.where('listing_status', status);
-                })
-                .distinctOn('nft_token_id')
-                .resultSize();
+                .orderBy(sort_by, sort_order)
+                .limit(limit);
+
+            console.log('Listings encontrados:', listings.length);
+
+            // Agrupar por RWA e manter apenas o listing mais recente
+            const rwaListings = new Map();
+            for (const listing of listings) {
+                if (listing.nftToken && listing.nftToken.rwa) {
+                    const rwaId = listing.nftToken.rwa.id;
+                    if (!rwaListings.has(rwaId) || 
+                        new Date(listing.created_at) > new Date(rwaListings.get(rwaId).created_at)) {
+                        rwaListings.set(rwaId, listing);
+                    }
+                }
+            }
+
+            const uniqueListings = Array.from(rwaListings.values());
+
+            // Buscar total de listings únicos por RWA
+            const totalCount = await TokenListing.query()
+                .where('listing_status', status)
+                .where('current_price', '>', 0)
+                .countDistinct('nft_token_id as count')
+                .first();
 
             return res.json({
-                listings,
+                listings: uniqueListings,
                 pagination: {
-                    total,
+                    total: parseInt(totalCount.count),
                     page: parseInt(page),
                     limit: parseInt(limit),
-                    pages: Math.ceil(total / limit)
+                    pages: Math.ceil(parseInt(totalCount.count) / limit)
                 }
             });
         } catch (error) {
