@@ -54,25 +54,39 @@ function convertToSnakeCase(obj) {
 
 // Função para validar e formatar coordenadas GPS
 function validateAndFormatCoordinates(coordinates) {
-    if (!coordinates || coordinates === "") return null;
+    console.log('Validando coordenadas:', coordinates);
+    
+    if (!coordinates || coordinates === "") {
+        console.log('Coordenadas vazias ou nulas');
+        return null;
+    }
     
     // Se for um objeto geometry
     if (typeof coordinates === 'object' && coordinates.coordinates) {
+        console.log('Coordenadas em formato geometry:', coordinates.coordinates);
         const [longitude, latitude] = coordinates.coordinates;
         if (isValidCoordinate(longitude, latitude)) {
-            return `${longitude}, ${latitude}`;
+            return `${longitude},${latitude}`;
         }
+        console.log('Coordenadas geometry inválidas');
         return null;
     }
     
     // Se for uma string
     if (typeof coordinates === 'string') {
+        console.log('Coordenadas em formato string:', coordinates);
+        // Remover espaços extras e normalizar vírgula
+        const normalizedCoords = coordinates.replace(/\s+/g, '').replace(',', ',');
+        console.log('Coordenadas normalizadas:', normalizedCoords);
+        
         // Verificar se é uma string de coordenadas (deve conter números e vírgula)
-        if (!coordinates.match(/^-?\d+\.?\d*,\s*-?\d+\.?\d*$/)) {
+        if (!normalizedCoords.match(/^-?\d+\.?\d*,-?\d+\.?\d*$/)) {
+            console.log('Formato de coordenadas inválido');
             return null;
         }
         
-        const [coord1, coord2] = coordinates.split(',').map(coord => parseFloat(coord.trim()));
+        const [coord1, coord2] = normalizedCoords.split(',').map(coord => parseFloat(coord));
+        console.log('Coordenadas parseadas:', { coord1, coord2 });
         
         // Determinar qual é latitude e qual é longitude
         let longitude, latitude;
@@ -80,22 +94,28 @@ function validateAndFormatCoordinates(coordinates) {
             // Formato: latitude, longitude
             latitude = coord1;
             longitude = coord2;
+            console.log('Formato detectado: latitude, longitude');
         } else if (Math.abs(coord1) > 90 && Math.abs(coord2) <= 90) {
             // Formato: longitude, latitude
             longitude = coord1;
             latitude = coord2;
+            console.log('Formato detectado: longitude, latitude');
         } else {
             // Se não conseguir determinar, assumir que está no formato correto
             longitude = coord1;
             latitude = coord2;
+            console.log('Formato assumido: longitude, latitude');
         }
         
         if (isValidCoordinate(longitude, latitude)) {
-            return `${longitude}, ${latitude}`;
+            console.log('Coordenadas válidas:', { longitude, latitude });
+            return `${longitude},${latitude}`;
         }
+        console.log('Coordenadas inválidas após validação');
         return null;
     }
     
+    console.log('Tipo de coordenadas não suportado:', typeof coordinates);
     return null;
 }
 
@@ -122,12 +142,6 @@ class RWAController {
             // Remover campos que não existem na tabela
             delete rwaData.metadata;
             
-            // Converter location para gps_coordinates se existir
-            if (rwaData.location) {
-                rwaData.gpsCoordinates = rwaData.location;
-                delete rwaData.location;
-            }
-            
             // Tratar campo price como currentValue
             if (rwaData.price !== undefined && rwaData.currentValue === undefined) {
                 console.log('Convertendo campo price para currentValue');
@@ -150,29 +164,25 @@ class RWAController {
                 validCoordinates = validateAndFormatCoordinates(rwaData.gpsCoordinates);
             }
             
-            // Se não tiver coordenadas válidas, usar location como fallback
-            if (!validCoordinates && rwaData.location) {
-                console.log('Usando location como fallback');
-                rwaData.gpsCoordinates = rwaData.location;
-                delete rwaData.location;
-            } else if (!validCoordinates) {
+            // Se não tiver coordenadas válidas, retornar erro
+            if (!validCoordinates) {
                 console.log('Erro: Coordenadas GPS inválidas');
                 return res.status(400).json({ 
                     error: 'Coordenadas GPS inválidas. Por favor, forneça coordenadas no formato "longitude, latitude" ou "latitude, longitude"',
-                    example: "-99.1332, 19.4326"
+                    example: "-99.1332, 19.4326",
+                    receivedCoordinates: rwaData.gpsCoordinates
                 });
-            } else {
-                rwaData.gpsCoordinates = validCoordinates;
             }
-
+            
+            console.log('Coordenadas validadas com sucesso:', validCoordinates);
+            rwaData.gpsCoordinates = validCoordinates;
+            
             // Atualizar geometry com as coordenadas validadas
-            if (validCoordinates) {
-                const [longitude, latitude] = validCoordinates.split(',').map(coord => parseFloat(coord.trim()));
-                rwaData.geometry = {
-                    type: 'Point',
-                    coordinates: [longitude, latitude]
-                };
-            }
+            const [longitude, latitude] = validCoordinates.split(',').map(coord => parseFloat(coord));
+            rwaData.geometry = {
+                type: 'Point',
+                coordinates: [longitude, latitude]
+            };
             
             // Log dos tipos de dados recebidos
             console.log('Tipos dos campos recebidos:', {
@@ -342,12 +352,6 @@ class RWAController {
 
             // Remover campos que não existem na tabela
             delete rwaData.metadata;
-
-            // Converter location para gps_coordinates se existir
-            if (rwaData.location) {
-                rwaData.gpsCoordinates = rwaData.location;
-                delete rwaData.location;
-            }
 
             // Validar campos numéricos se fornecidos
             if (rwaData.currentValue !== undefined) {

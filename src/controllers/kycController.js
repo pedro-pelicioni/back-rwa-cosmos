@@ -91,4 +91,38 @@ exports.getKyc = async (req, res) => {
     console.error('Erro ao buscar KYC:', error);
     res.status(500).json({ message: 'Erro ao buscar informações de KYC' });
   }
+};
+
+// Obter KYC por ID do usuário
+exports.getKycByUserId = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    // Primeiro, buscar o endereço da wallet do usuário
+    const userResult = await pool.query(
+      'SELECT wallet_address FROM users WHERE id = $1',
+      [userId]
+    );
+    
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ message: 'Usuário não encontrado' });
+    }
+    
+    const walletAddress = userResult.rows[0].wallet_address;
+    
+    // Buscar o KYC usando o endereço da wallet
+    const kycResult = await pool.query(
+      'SELECT * FROM kyc WHERE wallet_address = $1',
+      [walletAddress]
+    );
+    
+    if (kycResult.rows.length === 0) {
+      return res.status(404).json({ message: 'KYC não encontrado para este usuário' });
+    }
+    
+    res.json(kycResult.rows[0]);
+  } catch (error) {
+    console.error('Erro ao buscar KYC por ID do usuário:', error);
+    res.status(500).json({ message: 'Erro ao buscar informações de KYC' });
+  }
 }; 
