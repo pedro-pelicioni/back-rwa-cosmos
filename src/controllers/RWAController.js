@@ -122,6 +122,12 @@ class RWAController {
             // Remover campos que não existem na tabela
             delete rwaData.metadata;
             
+            // Converter location para gps_coordinates se existir
+            if (rwaData.location) {
+                rwaData.gpsCoordinates = rwaData.location;
+                delete rwaData.location;
+            }
+            
             // Tratar campo price como currentValue
             if (rwaData.price !== undefined && rwaData.currentValue === undefined) {
                 console.log('Convertendo campo price para currentValue');
@@ -333,6 +339,15 @@ class RWAController {
         try {
             const { id } = req.params;
             const rwaData = req.body;
+
+            // Remover campos que não existem na tabela
+            delete rwaData.metadata;
+
+            // Converter location para gps_coordinates se existir
+            if (rwaData.location) {
+                rwaData.gpsCoordinates = rwaData.location;
+                delete rwaData.location;
+            }
 
             // Validar campos numéricos se fornecidos
             if (rwaData.currentValue !== undefined) {

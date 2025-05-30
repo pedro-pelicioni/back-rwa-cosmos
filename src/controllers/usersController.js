@@ -42,7 +42,7 @@ exports.getMe = async (req, res) => {
 exports.submitKycBasic = async (req, res) => {
   try {
     const { nome, cpf } = req.body;
-    const walletAddress = req.user.wallet_address;
+    const walletAddress = req.user.address;
 
     // Validar campos obrigatórios
     if (!nome || !cpf) {
@@ -102,7 +102,7 @@ exports.submitKycBasic = async (req, res) => {
 // Enviar documentos para KYC (etapa 2)
 exports.submitKycDocuments = async (req, res) => {
   try {
-    const walletAddress = req.user.wallet_address;
+    const walletAddress = req.user.address;
 
     // Verificar se arquivos foram enviados
     if (!req.files || 
@@ -168,7 +168,7 @@ exports.submitKycDocuments = async (req, res) => {
 // Obter status do KYC
 exports.getKyc = async (req, res) => {
   try {
-    const walletAddress = req.user.wallet_address;
+    const walletAddress = req.user.address;
 
     const result = await pool.query(
       `SELECT id, nome, cpf, status, created_at,
@@ -179,7 +179,10 @@ exports.getKyc = async (req, res) => {
     );
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ message: 'KYC não encontrado' });
+      return res.json({
+        status: 'nao_iniciado',
+        etapa: 'dados_basicos'
+      });
     }
 
     const kyc = result.rows[0];

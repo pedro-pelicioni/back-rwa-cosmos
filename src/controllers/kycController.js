@@ -17,7 +17,7 @@ const simulateIpfsUpload = (file) => {
 exports.submitKyc = async (req, res) => {
   try {
     const { nome, cpf } = req.body;
-    const walletAddress = req.user.wallet_address;
+    const walletAddress = req.user.address;
     
     // Verificar se já existe KYC para este usuário
     const existingKyc = await pool.query(
@@ -75,7 +75,7 @@ exports.submitKyc = async (req, res) => {
 // Obter KYC do usuário
 exports.getKyc = async (req, res) => {
   try {
-    const walletAddress = req.user.wallet_address;
+    const walletAddress = req.user.address;
     
     const result = await pool.query(
       'SELECT * FROM kyc WHERE wallet_address = $1',
