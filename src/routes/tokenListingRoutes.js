@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const tokenListingController = require('../controllers/TokenListingController');
-const authMiddleware = require('../middleware/authMiddleware');
+const jwtAuth = require('../middleware/jwtAuth');
 
 // Rotas públicas
 router.get('/listings', tokenListingController.listActiveListings);
@@ -11,7 +11,7 @@ router.get('/listings/:listing_id/price-history', tokenListingController.getPric
 router.get('/tokens/:nft_token_id/availability', tokenListingController.checkTokenAvailability);
 
 // Rotas que requerem autenticação
-router.use(authMiddleware);
+router.use(jwtAuth);
 router.get('/my-listings', tokenListingController.getUserListings);
 router.post('/listings', tokenListingController.createListing);
 router.patch('/listings/:listing_id/price', tokenListingController.updatePrice);

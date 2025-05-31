@@ -15,7 +15,7 @@ exports.getMe = async (req, res) => {
     );
     
     if (userResult.rows.length === 0) {
-      return res.status(404).json({ message: 'Usuário não encontrado' });
+      return res.status(404).json({ error: 'User not found' });
     }
     
     const user = userResult.rows[0];
@@ -33,8 +33,8 @@ exports.getMe = async (req, res) => {
     
     res.json(user);
   } catch (error) {
-    console.error('Erro ao buscar dados do usuário:', error);
-    res.status(500).json({ message: 'Erro ao buscar dados do usuário' });
+    console.error('Error fetching user data:', error);
+    res.status(500).json({ error: 'Error fetching user data' });
   }
 };
 
@@ -42,11 +42,11 @@ exports.getMe = async (req, res) => {
 exports.submitKycBasic = async (req, res) => {
   try {
     const { nome, cpf } = req.body;
-    const walletAddress = req.user.wallet_address;
+    const walletAddress = req.user.address;
 
     // Validar campos obrigatórios
     if (!nome || !cpf) {
-      return res.status(400).json({ message: 'Nome e CPF são obrigatórios' });
+      return res.status(400).json({ error: 'Name and CPF are required' });
     }
 
     // Verificar se já existe KYC para este usuário
@@ -61,7 +61,7 @@ exports.submitKycBasic = async (req, res) => {
       // Se já tem documentos enviados, retorna erro
       if (kyc.documento_frente_cid) {
         return res.status(400).json({ 
-          message: 'KYC já iniciado. Por favor, envie os documentos.',
+          error: 'KYC already started. Please submit your documents.',
           kyc_id: kyc.id
         });
       }
@@ -76,7 +76,7 @@ exports.submitKycBasic = async (req, res) => {
       );
       
       return res.json({
-        message: 'Dados básicos atualizados com sucesso',
+        message: 'Basic data updated successfully',
         kyc_id: result.rows[0].id
       });
     }
@@ -90,19 +90,19 @@ exports.submitKycBasic = async (req, res) => {
     );
 
     res.status(201).json({
-      message: 'Dados básicos enviados com sucesso',
+      message: 'Basic data submitted successfully',
       kyc_id: result.rows[0].id
     });
   } catch (error) {
-    console.error('Erro ao enviar dados básicos do KYC:', error);
-    res.status(500).json({ message: 'Erro ao enviar dados básicos do KYC' });
+    console.error('Error submitting KYC basic data:', error);
+    res.status(500).json({ error: 'Error submitting KYC basic data' });
   }
 };
 
 // Enviar documentos para KYC (etapa 2)
 exports.submitKycDocuments = async (req, res) => {
   try {
-    const walletAddress = req.user.wallet_address;
+    const walletAddress = req.user.address;
 
     // Verificar se arquivos foram enviados
     if (!req.files || 
@@ -111,7 +111,7 @@ exports.submitKycDocuments = async (req, res) => {
         !req.files.selfie_1 || 
         !req.files.selfie_2) {
       return res.status(400).json({ 
-        message: 'Todos os documentos são obrigatórios: frente e verso do documento e duas selfies' 
+        error: 'All documents are required: front and back of the document and two selfies' 
       });
     }
 
@@ -123,7 +123,7 @@ exports.submitKycDocuments = async (req, res) => {
 
     if (existingKyc.rows.length === 0) {
       return res.status(400).json({ 
-        message: 'Por favor, envie primeiro os dados básicos (nome e CPF)' 
+        error: 'Please submit basic data (name and CPF) first' 
       });
     }
 
@@ -156,19 +156,19 @@ exports.submitKycDocuments = async (req, res) => {
     );
 
     res.json({
-      message: 'Documentos enviados com sucesso',
+      message: 'Documents submitted successfully',
       kyc_id: result.rows[0].id
     });
   } catch (error) {
-    console.error('Erro ao enviar documentos KYC:', error);
-    res.status(500).json({ message: 'Erro ao enviar documentos KYC' });
+    console.error('Error submitting KYC documents:', error);
+    res.status(500).json({ error: 'Error submitting KYC documents' });
   }
 };
 
 // Obter status do KYC
 exports.getKyc = async (req, res) => {
   try {
-    const walletAddress = req.user.wallet_address;
+    const walletAddress = req.user.address;
 
     const result = await pool.query(
       `SELECT id, nome, cpf, status, created_at,
@@ -179,21 +179,24 @@ exports.getKyc = async (req, res) => {
     );
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ message: 'KYC não encontrado' });
+      return res.json({
+        status: 'not_started',
+        stage: 'basic_data'
+      });
     }
 
     const kyc = result.rows[0];
     
     // Determinar a etapa atual do KYC
     if (!kyc.documento_frente_cid) {
-      kyc.etapa = 'dados_basicos';
+      kyc.stage = 'basic_data';
     } else {
-      kyc.etapa = 'documentos';
+      kyc.stage = 'documents';
     }
 
     res.json(kyc);
   } catch (error) {
-    console.error('Erro ao buscar status do KYC:', error);
-    res.status(500).json({ message: 'Erro ao buscar status do KYC' });
+    console.error('Error fetching KYC status:', error);
+    res.status(500).json({ error: 'Error fetching KYC status' });
   }
 }; 

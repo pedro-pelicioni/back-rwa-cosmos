@@ -17,7 +17,7 @@ const simulateIpfsUpload = (file) => {
 exports.submitKyc = async (req, res) => {
   try {
     const { nome, cpf } = req.body;
-    const walletAddress = req.user.wallet_address;
+    const walletAddress = req.user.address;
     
     // Verificar se já existe KYC para este usuário
     const existingKyc = await pool.query(
@@ -27,13 +27,13 @@ exports.submitKyc = async (req, res) => {
     
     if (existingKyc.rows.length > 0) {
       return res.status(400).json({ 
-        message: 'KYC já enviado. Status atual: ' + existingKyc.rows[0].status 
+        error: 'KYC already sent. Current status: ' + existingKyc.rows[0].status 
       });
     }
     
     // Validações básicas
     if (!nome || !cpf) {
-      return res.status(400).json({ message: 'Nome e CPF são obrigatórios' });
+      return res.status(400).json({ error: 'Nome and CPF are required' });
     }
     
     // Verificar se arquivos foram enviados
@@ -43,7 +43,7 @@ exports.submitKyc = async (req, res) => {
         !req.files.selfie_1 || 
         !req.files.selfie_2) {
       return res.status(400).json({ 
-        message: 'Todos os documentos são obrigatórios: frente e verso do documento e duas selfies' 
+        error: 'All documents are required: front and back of the document and two selfies' 
       });
     }
     
@@ -59,23 +59,23 @@ exports.submitKyc = async (req, res) => {
         (wallet_address, nome, cpf, documento_frente_cid, documento_verso_cid, selfie_1_cid, selfie_2_cid, status) 
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8) 
        RETURNING *`,
-      [walletAddress, nome, cpf, documento_frente_cid, documento_verso_cid, selfie_1_cid, selfie_2_cid, 'pendente']
+      [walletAddress, nome, cpf, documento_frente_cid, documento_verso_cid, selfie_1_cid, selfie_2_cid, 'pending']
     );
     
     res.status(201).json({
-      message: 'KYC enviado com sucesso',
+      message: 'KYC sent successfully',
       kyc: result.rows[0]
     });
   } catch (error) {
-    console.error('Erro ao enviar KYC:', error);
-    res.status(500).json({ message: 'Erro ao processar o envio do KYC' });
+    console.error('Error sending KYC:', error);
+    res.status(500).json({ error: 'Error processing KYC submission' });
   }
 };
 
 // Obter KYC do usuário
 exports.getKyc = async (req, res) => {
   try {
-    const walletAddress = req.user.wallet_address;
+    const walletAddress = req.user.address;
     
     const result = await pool.query(
       'SELECT * FROM kyc WHERE wallet_address = $1',
@@ -83,12 +83,46 @@ exports.getKyc = async (req, res) => {
     );
     
     if (result.rows.length === 0) {
-      return res.status(404).json({ message: 'KYC não encontrado' });
+      return res.status(404).json({ error: 'KYC not found' });
     }
     
     res.json(result.rows[0]);
   } catch (error) {
-    console.error('Erro ao buscar KYC:', error);
-    res.status(500).json({ message: 'Erro ao buscar informações de KYC' });
+    console.error('Error searching KYC:', error);
+    res.status(500).json({ error: 'Error searching KYC information' });
+  }
+};
+
+// Obter KYC por ID do usuário
+exports.getKycByUserId = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    // Primeiro, buscar o endereço da wallet do usuário
+    const userResult = await pool.query(
+      'SELECT wallet_address FROM users WHERE id = $1',
+      [userId]
+    );
+    
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    const walletAddress = userResult.rows[0].wallet_address;
+    
+    // Buscar o KYC usando o endereço da wallet
+    const kycResult = await pool.query(
+      'SELECT * FROM kyc WHERE wallet_address = $1',
+      [walletAddress]
+    );
+    
+    if (kycResult.rows.length === 0) {
+      return res.status(404).json({ error: 'KYC not found for this user' });
+    }
+    
+    res.json(kycResult.rows[0]);
+  } catch (error) {
+    console.error('Error searching KYC by user ID:', error);
+    res.status(500).json({ error: 'Error searching KYC information' });
   }
 }; 

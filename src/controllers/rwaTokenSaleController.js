@@ -12,15 +12,15 @@ class RWATokenSaleController {
     try {
       // Validar campos obrigatórios
       if (!rwa_id) {
-        return res.status(400).json({ error: 'rwa_id é obrigatório' });
+        return res.status(400).json({ error: 'rwa_id is required' });
       }
 
       if (!quantity || quantity < 1) {
-        return res.status(400).json({ error: 'quantity deve ser maior que zero' });
+        return res.status(400).json({ error: 'quantity must be greater than zero' });
       }
 
       if (!price_per_token || price_per_token <= 0) {
-        return res.status(400).json({ error: 'price_per_token deve ser maior que zero' });
+        return res.status(400).json({ error: 'price_per_token must be greater than zero' });
       }
 
       console.log('=== INÍCIO DA VENDA DE TOKENS ===');
@@ -37,7 +37,7 @@ class RWATokenSaleController {
 
       if (tokens.length < quantity) {
         return res.status(400).json({ 
-          error: 'Quantidade de tokens disponível insuficiente' 
+          error: 'Insufficient token quantity available' 
         });
       }
 
@@ -80,9 +80,9 @@ class RWATokenSaleController {
 
         await trx.commit();
 
-        console.log('=== VENDA CONCLUÍDA COM SUCESSO ===');
-        console.log('Venda:', sale);
-        console.log('Tokens transferidos:', tokens.length);
+        console.log('=== SALE COMPLETED SUCCESSFULLY ===');
+        console.log('Sale:', sale);
+        console.log('Tokens transferred:', tokens.length);
 
         return res.status(201).json({
           sale,
@@ -95,8 +95,8 @@ class RWATokenSaleController {
       }
 
     } catch (error) {
-      console.error('Erro ao processar venda:', error);
-      return res.status(500).json({ error: 'Erro ao processar venda' });
+      console.error('Error processing sale:', error);
+      return res.status(500).json({ error: 'Error processing sale' });
     }
   }
 
@@ -112,7 +112,7 @@ class RWATokenSaleController {
         .first();
 
       if (!sale) {
-        return res.status(404).json({ error: 'Venda não encontrada ou não está pendente' });
+        return res.status(404).json({ error: 'Sale not found or not pending' });
       }
 
       // Atualizar a venda

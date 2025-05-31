@@ -16,6 +16,7 @@ const rwaOwnershipHistoryRoutes = require('./routes/rwaOwnershipHistoryRoutes');
 const jwtAuth = require('./middleware/jwtAuth');
 const http = require('http');
 const { pool } = require('./database/connection');
+const tokenListingRoutes = require('./routes/tokenListingRoutes');
 
 // Configuração das variáveis de ambiente
 dotenv.config();
@@ -44,6 +45,7 @@ app.use('/api/rwa/facilities', jwtAuth, rwaFacilityRoutes);
 app.use('/api/rwa/nfts', rwaNftRoutes);
 app.use('/api/rwa/tokens/sale', rwaTokenSaleRoutes);
 app.use('/api/rwa/ownership-history', rwaOwnershipHistoryRoutes);
+app.use('/api/marketplace', tokenListingRoutes);
 
 // Rota de saúde
 app.get('/health', (req, res) => {

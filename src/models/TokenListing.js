@@ -27,14 +27,14 @@ class TokenListing extends Model {
     }
 
     static get relationMappings() {
-        const NftToken = require('./NftToken');
+        const RWANFTToken = require('./RWANFTToken');
         const User = require('./User');
         const TokenPriceHistory = require('./TokenPriceHistory');
 
         return {
             nftToken: {
                 relation: Model.BelongsToOneRelation,
-                modelClass: NftToken,
+                modelClass: RWANFTToken,
                 join: {
                     from: 'rwa_token_listings.nft_token_id',
                     to: 'rwa_nft_tokens.id'

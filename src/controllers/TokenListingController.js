@@ -1,6 +1,6 @@
 const TokenListing = require('../models/TokenListing');
 const TokenPriceHistory = require('../models/TokenPriceHistory');
-const NftToken = require('../models/NftToken');
+const RWANFTToken = require('../models/RWANFTToken');
 
 class TokenListingController {
     // Listar todos os tokens disponíveis para venda
@@ -15,7 +15,7 @@ class TokenListingController {
             return res.json(listings || []);
         } catch (error) {
             console.error('Error listing active tokens:', error);
-            return res.status(500).json({ error: 'Erro ao listar tokens ativos' });
+            return res.status(500).json({ error: 'Error listing active tokens' });
         }
     }
 
@@ -26,13 +26,13 @@ class TokenListingController {
 
         try {
             // Verificar se o token pertence ao usuário
-            const token = await NftToken.query()
+            const token = await RWANFTToken.query()
                 .where('id', nft_token_id)
                 .where('owner_user_id', seller_id)
                 .first();
 
             if (!token) {
-                return res.status(403).json({ error: 'Token não pertence ao usuário' });
+                return res.status(403).json({ error: 'Token does not belong to user' });
             }
 
             // Verificar se já existe um listing ativo para este token
@@ -42,7 +42,7 @@ class TokenListingController {
                 .first();
 
             if (existingListing) {
-                return res.status(400).json({ error: 'Token já está listado para venda' });
+                return res.status(400).json({ error: 'Token is already listed for sale' });
             }
 
             const listing = await TokenListing.query().insert({
@@ -67,7 +67,7 @@ class TokenListingController {
             return res.status(201).json(listing);
         } catch (error) {
             console.error('Error creating listing:', error);
-            return res.status(500).json({ error: 'Erro ao criar listing' });
+            return res.status(500).json({ error: 'Error creating listing' });
         }
     }
 
@@ -84,11 +84,11 @@ class TokenListingController {
                 .first();
 
             if (!listing) {
-                return res.status(404).json({ error: 'Listing não encontrado ou não está ativo' });
+                return res.status(404).json({ error: 'Listing not found or not active' });
             }
 
             if (listing.seller_id !== user_id) {
-                return res.status(403).json({ error: 'Apenas o vendedor pode atualizar o preço' });
+                return res.status(403).json({ error: 'Only the seller can update the price' });
             }
 
             // Atualizar o preço atual
@@ -104,10 +104,10 @@ class TokenListingController {
                 change_reason
             });
 
-            return res.json({ message: 'Preço atualizado com sucesso' });
+            return res.json({ message: 'Price updated successfully' });
         } catch (error) {
             console.error('Error updating price:', error);
-            return res.status(500).json({ error: 'Erro ao atualizar preço' });
+            return res.status(500).json({ error: 'Error updating price' });
         }
     }
 
@@ -123,21 +123,21 @@ class TokenListingController {
                 .first();
 
             if (!listing) {
-                return res.status(404).json({ error: 'Listing não encontrado ou não está ativo' });
+                return res.status(404).json({ error: 'Listing not found or not active' });
             }
 
             if (listing.seller_id !== user_id) {
-                return res.status(403).json({ error: 'Apenas o vendedor pode cancelar o listing' });
+                return res.status(403).json({ error: 'Only the seller can cancel the listing' });
             }
 
             await listing.$query().patch({
                 listing_status: 'cancelled'
             });
 
-            return res.json({ message: 'Listing cancelado com sucesso' });
+            return res.json({ message: 'Listing cancelled successfully' });
         } catch (error) {
             console.error('Error cancelling listing:', error);
-            return res.status(500).json({ error: 'Erro ao cancelar listing' });
+            return res.status(500).json({ error: 'Error cancelling listing' });
         }
     }
 
@@ -152,13 +152,13 @@ class TokenListingController {
                 .first();
 
             if (!listing) {
-                return res.status(404).json({ error: 'Listing não encontrado' });
+                return res.status(404).json({ error: 'Listing not found' });
             }
 
             return res.json(listing);
         } catch (error) {
             console.error('Error getting listing details:', error);
-            return res.status(500).json({ error: 'Erro ao obter detalhes do listing' });
+            return res.status(500).json({ error: 'Error getting listing details' });
         }
     }
 
@@ -175,7 +175,7 @@ class TokenListingController {
             return res.json(priceHistory);
         } catch (error) {
             console.error('Error getting price history:', error);
-            return res.status(500).json({ error: 'Erro ao obter histórico de preços' });
+            return res.status(500).json({ error: 'Error getting price history' });
         }
     }
 
@@ -192,7 +192,7 @@ class TokenListingController {
             return res.json(listings);
         } catch (error) {
             console.error('Error getting user listings:', error);
-            return res.status(500).json({ error: 'Erro ao listar seus tokens' });
+            return res.status(500).json({ error: 'Error listing your tokens' });
         }
     }
 
@@ -203,33 +203,57 @@ class TokenListingController {
             max_price, 
             status = 'active',
             sort_by = 'created_at',
-            sort_order = 'desc'
+            sort_order = 'desc',
+            page = 1,
+            limit = 20
         } = req.query;
 
         try {
-            let query = TokenListing.query()
-                .withGraphFetched('[nftToken, seller, priceHistory]');
+            console.log('Iniciando busca de listings com parâmetros:', { status, min_price, max_price, page, limit });
+            
+            // Buscar apenas listings ativos com seus relacionamentos
+            const listings = await TokenListing.query()
+                .withGraphFetched('[nftToken.[rwa], seller]')
+                .where('listing_status', status)
+                .where('current_price', '>', 0)
+                .orderBy(sort_by, sort_order)
+                .limit(limit);
 
-            // Aplicar filtros
-            if (min_price) {
-                query = query.where('current_price', '>=', min_price);
-            }
-            if (max_price) {
-                query = query.where('current_price', '<=', max_price);
-            }
-            if (status) {
-                query = query.where('listing_status', status);
+            console.log('Listings encontrados:', listings.length);
+
+            // Agrupar por RWA e manter apenas o listing mais recente
+            const rwaListings = new Map();
+            for (const listing of listings) {
+                if (listing.nftToken && listing.nftToken.rwa) {
+                    const rwaId = listing.nftToken.rwa.id;
+                    if (!rwaListings.has(rwaId) || 
+                        new Date(listing.created_at) > new Date(rwaListings.get(rwaId).created_at)) {
+                        rwaListings.set(rwaId, listing);
+                    }
+                }
             }
 
-            // Ordenação
-            query = query.orderBy(sort_by, sort_order);
+            const uniqueListings = Array.from(rwaListings.values());
 
-            const listings = await query;
-            // Retorna lista vazia se não encontrar resultados
-            return res.json(listings || []);
+            // Buscar total de listings únicos por RWA
+            const totalCount = await TokenListing.query()
+                .where('listing_status', status)
+                .where('current_price', '>', 0)
+                .countDistinct('nft_token_id as count')
+                .first();
+
+            return res.json({
+                listings: uniqueListings,
+                pagination: {
+                    total: parseInt(totalCount.count),
+                    page: parseInt(page),
+                    limit: parseInt(limit),
+                    pages: Math.ceil(parseInt(totalCount.count) / limit)
+                }
+            });
         } catch (error) {
             console.error('Error searching listings:', error);
-            return res.status(500).json({ error: 'Erro ao buscar listings' });
+            return res.status(500).json({ error: 'Error searching listings' });
         }
     }
 
@@ -245,12 +269,12 @@ class TokenListingController {
                 .first();
 
             if (!listing) {
-                return res.status(404).json({ error: 'Listing não encontrado' });
+                return res.status(404).json({ error: 'Listing not found' });
             }
 
             // Verificar se o usuário tem permissão
             if (listing.seller_id !== user_id) {
-                return res.status(403).json({ error: 'Sem permissão para atualizar este listing' });
+                return res.status(403).json({ error: 'No permission to update this listing' });
             }
 
             // Atualizar status
@@ -259,10 +283,10 @@ class TokenListingController {
                 chain_transaction_metadata: transaction_metadata
             });
 
-            return res.json({ message: 'Status atualizado com sucesso' });
+            return res.json({ message: 'Status updated successfully' });
         } catch (error) {
             console.error('Error updating listing status:', error);
-            return res.status(500).json({ error: 'Erro ao atualizar status' });
+            return res.status(500).json({ error: 'Error updating status' });
         }
     }
 
@@ -282,7 +306,7 @@ class TokenListingController {
             });
         } catch (error) {
             console.error('Error checking token availability:', error);
-            return res.status(500).json({ error: 'Erro ao verificar disponibilidade' });
+            return res.status(500).json({ error: 'Error checking availability' });
         }
     }
 }
