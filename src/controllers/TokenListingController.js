@@ -15,7 +15,7 @@ class TokenListingController {
             return res.json(listings || []);
         } catch (error) {
             console.error('Error listing active tokens:', error);
-            return res.status(500).json({ error: 'Erro ao listar tokens ativos' });
+            return res.status(500).json({ error: 'Error listing active tokens' });
         }
     }
 
@@ -32,7 +32,7 @@ class TokenListingController {
                 .first();
 
             if (!token) {
-                return res.status(403).json({ error: 'Token não pertence ao usuário' });
+                return res.status(403).json({ error: 'Token does not belong to user' });
             }
 
             // Verificar se já existe um listing ativo para este token
@@ -42,7 +42,7 @@ class TokenListingController {
                 .first();
 
             if (existingListing) {
-                return res.status(400).json({ error: 'Token já está listado para venda' });
+                return res.status(400).json({ error: 'Token is already listed for sale' });
             }
 
             const listing = await TokenListing.query().insert({
@@ -67,7 +67,7 @@ class TokenListingController {
             return res.status(201).json(listing);
         } catch (error) {
             console.error('Error creating listing:', error);
-            return res.status(500).json({ error: 'Erro ao criar listing' });
+            return res.status(500).json({ error: 'Error creating listing' });
         }
     }
 
@@ -84,11 +84,11 @@ class TokenListingController {
                 .first();
 
             if (!listing) {
-                return res.status(404).json({ error: 'Listing não encontrado ou não está ativo' });
+                return res.status(404).json({ error: 'Listing not found or not active' });
             }
 
             if (listing.seller_id !== user_id) {
-                return res.status(403).json({ error: 'Apenas o vendedor pode atualizar o preço' });
+                return res.status(403).json({ error: 'Only the seller can update the price' });
             }
 
             // Atualizar o preço atual
@@ -104,10 +104,10 @@ class TokenListingController {
                 change_reason
             });
 
-            return res.json({ message: 'Preço atualizado com sucesso' });
+            return res.json({ message: 'Price updated successfully' });
         } catch (error) {
             console.error('Error updating price:', error);
-            return res.status(500).json({ error: 'Erro ao atualizar preço' });
+            return res.status(500).json({ error: 'Error updating price' });
         }
     }
 
@@ -123,21 +123,21 @@ class TokenListingController {
                 .first();
 
             if (!listing) {
-                return res.status(404).json({ error: 'Listing não encontrado ou não está ativo' });
+                return res.status(404).json({ error: 'Listing not found or not active' });
             }
 
             if (listing.seller_id !== user_id) {
-                return res.status(403).json({ error: 'Apenas o vendedor pode cancelar o listing' });
+                return res.status(403).json({ error: 'Only the seller can cancel the listing' });
             }
 
             await listing.$query().patch({
                 listing_status: 'cancelled'
             });
 
-            return res.json({ message: 'Listing cancelado com sucesso' });
+            return res.json({ message: 'Listing cancelled successfully' });
         } catch (error) {
             console.error('Error cancelling listing:', error);
-            return res.status(500).json({ error: 'Erro ao cancelar listing' });
+            return res.status(500).json({ error: 'Error cancelling listing' });
         }
     }
 
@@ -152,13 +152,13 @@ class TokenListingController {
                 .first();
 
             if (!listing) {
-                return res.status(404).json({ error: 'Listing não encontrado' });
+                return res.status(404).json({ error: 'Listing not found' });
             }
 
             return res.json(listing);
         } catch (error) {
             console.error('Error getting listing details:', error);
-            return res.status(500).json({ error: 'Erro ao obter detalhes do listing' });
+            return res.status(500).json({ error: 'Error getting listing details' });
         }
     }
 
@@ -175,7 +175,7 @@ class TokenListingController {
             return res.json(priceHistory);
         } catch (error) {
             console.error('Error getting price history:', error);
-            return res.status(500).json({ error: 'Erro ao obter histórico de preços' });
+            return res.status(500).json({ error: 'Error getting price history' });
         }
     }
 
@@ -192,7 +192,7 @@ class TokenListingController {
             return res.json(listings);
         } catch (error) {
             console.error('Error getting user listings:', error);
-            return res.status(500).json({ error: 'Erro ao listar seus tokens' });
+            return res.status(500).json({ error: 'Error listing your tokens' });
         }
     }
 
@@ -253,7 +253,7 @@ class TokenListingController {
             });
         } catch (error) {
             console.error('Error searching listings:', error);
-            return res.status(500).json({ error: 'Erro ao buscar listings' });
+            return res.status(500).json({ error: 'Error searching listings' });
         }
     }
 
@@ -269,12 +269,12 @@ class TokenListingController {
                 .first();
 
             if (!listing) {
-                return res.status(404).json({ error: 'Listing não encontrado' });
+                return res.status(404).json({ error: 'Listing not found' });
             }
 
             // Verificar se o usuário tem permissão
             if (listing.seller_id !== user_id) {
-                return res.status(403).json({ error: 'Sem permissão para atualizar este listing' });
+                return res.status(403).json({ error: 'No permission to update this listing' });
             }
 
             // Atualizar status
@@ -283,10 +283,10 @@ class TokenListingController {
                 chain_transaction_metadata: transaction_metadata
             });
 
-            return res.json({ message: 'Status atualizado com sucesso' });
+            return res.json({ message: 'Status updated successfully' });
         } catch (error) {
             console.error('Error updating listing status:', error);
-            return res.status(500).json({ error: 'Erro ao atualizar status' });
+            return res.status(500).json({ error: 'Error updating status' });
         }
     }
 
@@ -306,7 +306,7 @@ class TokenListingController {
             });
         } catch (error) {
             console.error('Error checking token availability:', error);
-            return res.status(500).json({ error: 'Erro ao verificar disponibilidade' });
+            return res.status(500).json({ error: 'Error checking availability' });
         }
     }
 }

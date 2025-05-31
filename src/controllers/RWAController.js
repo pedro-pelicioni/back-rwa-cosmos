@@ -54,39 +54,39 @@ function convertToSnakeCase(obj) {
 
 // Função para validar e formatar coordenadas GPS
 function validateAndFormatCoordinates(coordinates) {
-    console.log('Validando coordenadas:', coordinates);
+    console.log('Validating coordinates:', coordinates);
     
     if (!coordinates || coordinates === "") {
-        console.log('Coordenadas vazias ou nulas');
+        console.log('Empty or null coordinates');
         return null;
     }
     
     // Se for um objeto geometry
     if (typeof coordinates === 'object' && coordinates.coordinates) {
-        console.log('Coordenadas em formato geometry:', coordinates.coordinates);
+        console.log('Coordinates in geometry format:', coordinates.coordinates);
         const [longitude, latitude] = coordinates.coordinates;
         if (isValidCoordinate(longitude, latitude)) {
             return `${longitude},${latitude}`;
         }
-        console.log('Coordenadas geometry inválidas');
+        console.log('Invalid geometry coordinates');
         return null;
     }
     
     // Se for uma string
     if (typeof coordinates === 'string') {
-        console.log('Coordenadas em formato string:', coordinates);
+        console.log('Coordinates in string format:', coordinates);
         // Remover espaços extras e normalizar vírgula
         const normalizedCoords = coordinates.replace(/\s+/g, '').replace(',', ',');
-        console.log('Coordenadas normalizadas:', normalizedCoords);
+        console.log('Normalized coordinates:', normalizedCoords);
         
         // Verificar se é uma string de coordenadas (deve conter números e vírgula)
         if (!normalizedCoords.match(/^-?\d+\.?\d*,-?\d+\.?\d*$/)) {
-            console.log('Formato de coordenadas inválido');
+            console.log('Invalid coordinate format');
             return null;
         }
         
         const [coord1, coord2] = normalizedCoords.split(',').map(coord => parseFloat(coord));
-        console.log('Coordenadas parseadas:', { coord1, coord2 });
+        console.log('Parsed coordinates:', { coord1, coord2 });
         
         // Determinar qual é latitude e qual é longitude
         let longitude, latitude;
@@ -94,28 +94,28 @@ function validateAndFormatCoordinates(coordinates) {
             // Formato: latitude, longitude
             latitude = coord1;
             longitude = coord2;
-            console.log('Formato detectado: latitude, longitude');
+            console.log('Detected format: latitude, longitude');
         } else if (Math.abs(coord1) > 90 && Math.abs(coord2) <= 90) {
             // Formato: longitude, latitude
             longitude = coord1;
             latitude = coord2;
-            console.log('Formato detectado: longitude, latitude');
+            console.log('Detected format: longitude, latitude');
         } else {
             // Se não conseguir determinar, assumir que está no formato correto
             longitude = coord1;
             latitude = coord2;
-            console.log('Formato assumido: longitude, latitude');
+            console.log('Assumed format: longitude, latitude');
         }
         
         if (isValidCoordinate(longitude, latitude)) {
-            console.log('Coordenadas válidas:', { longitude, latitude });
+            console.log('Valid coordinates:', { longitude, latitude });
             return `${longitude},${latitude}`;
         }
-        console.log('Coordenadas inválidas após validação');
+        console.log('Invalid coordinates after validation');
         return null;
     }
     
-    console.log('Tipo de coordenadas não suportado:', typeof coordinates);
+    console.log('Unsupported coordinate type:', typeof coordinates);
     return null;
 }
 
@@ -132,10 +132,10 @@ function isValidCoordinate(longitude, latitude) {
 class RWAController {
     static async create(req, res) {
         try {
-            console.log('=== INÍCIO DA CRIAÇÃO DE RWA ===');
-            console.log('Headers recebidos:', JSON.stringify(req.headers, null, 2));
-            console.log('Body recebido:', JSON.stringify(req.body, null, 2));
-            console.log('Usuário autenticado:', req.user.id);
+            console.log('=== STARTING RWA CREATION ===');
+            console.log('Received headers:', JSON.stringify(req.headers, null, 2));
+            console.log('Received body:', JSON.stringify(req.body, null, 2));
+            console.log('Authenticated user:', req.user.id);
             
             const rwaData = req.body;
             
@@ -144,7 +144,7 @@ class RWAController {
             
             // Tratar campo price como currentValue
             if (rwaData.price !== undefined && rwaData.currentValue === undefined) {
-                console.log('Convertendo campo price para currentValue');
+                console.log('Converting price to currentValue');
                 rwaData.currentValue = rwaData.price;
                 delete rwaData.price;
             }
@@ -154,27 +154,27 @@ class RWAController {
             
             // Tentar usar geometry primeiro
             if (rwaData.geometry && rwaData.geometry.coordinates) {
-                console.log('Validando coordenadas do geometry');
+                console.log('Validating geometry coordinates');
                 validCoordinates = validateAndFormatCoordinates(rwaData.geometry);
             }
             
             // Se não tiver geometry válido, tentar gpsCoordinates
             if (!validCoordinates && rwaData.gpsCoordinates) {
-                console.log('Validando coordenadas do gpsCoordinates');
+                console.log('Validating gpsCoordinates');
                 validCoordinates = validateAndFormatCoordinates(rwaData.gpsCoordinates);
             }
             
             // Se não tiver coordenadas válidas, retornar erro
             if (!validCoordinates) {
-                console.log('Erro: Coordenadas GPS inválidas');
+                console.log('Error: Invalid GPS coordinates');
                 return res.status(400).json({ 
-                    error: 'Coordenadas GPS inválidas. Por favor, forneça coordenadas no formato "longitude, latitude" ou "latitude, longitude"',
+                    error: 'Invalid GPS coordinates. Please provide coordinates in the format "longitude, latitude" or "latitude, longitude"',
                     example: "-99.1332, 19.4326",
                     receivedCoordinates: rwaData.gpsCoordinates
                 });
             }
             
-            console.log('Coordenadas validadas com sucesso:', validCoordinates);
+            console.log('Validated coordinates successfully:', validCoordinates);
             rwaData.gpsCoordinates = validCoordinates;
             
             // Atualizar geometry com as coordenadas validadas
@@ -185,7 +185,7 @@ class RWAController {
             };
             
             // Log dos tipos de dados recebidos
-            console.log('Tipos dos campos recebidos:', {
+            console.log('Received data types:', {
                 name: typeof rwaData.name,
                 gpsCoordinates: typeof rwaData.gpsCoordinates,
                 city: typeof rwaData.city,
@@ -199,7 +199,7 @@ class RWAController {
             });
             
             // Validar campos obrigatórios
-            console.log('\n=== VALIDAÇÃO DE CAMPOS ===');
+            console.log('\n=== FIELDS VALIDATION ===');
             const requiredFields = {
                 name: { value: rwaData.name, type: typeof rwaData.name },
                 gpsCoordinates: { value: rwaData.gpsCoordinates, type: typeof rwaData.gpsCoordinates },
@@ -213,14 +213,14 @@ class RWAController {
                 geometry: { value: rwaData.geometry, type: typeof rwaData.geometry }
             };
 
-            console.log('Tipos dos campos recebidos:', requiredFields);
+            console.log('Received data types:', requiredFields);
 
             // Validar cada campo
             for (const [field, data] of Object.entries(requiredFields)) {
-                console.log(`Campo ${field}:`, {
-                    valor: data.value,
-                    tipo: data.type,
-                    'éVazio': !data.value
+                console.log(`Field ${field}:`, {
+                    value: data.value,
+                    type: data.type,
+                    'isEmpty': !data.value
                 });
             }
 
@@ -231,25 +231,25 @@ class RWAController {
                 userId: req.user.id
             };
 
-            console.log('Valores após conversão numérica:', {
-                currentValue: { valor: numericValues.currentValue.valor, tipo: numericValues.currentValue.tipo, 'éNaN': isNaN(numericValues.currentValue.valor) },
-                totalTokens: { valor: numericValues.totalTokens.valor, tipo: numericValues.totalTokens.tipo, 'éNaN': isNaN(numericValues.totalTokens.valor) },
+            console.log('Values after numeric conversion:', {
+                currentValue: { valor: numericValues.currentValue.valor, tipo: numericValues.currentValue.tipo, 'isNaN': isNaN(numericValues.currentValue.valor) },
+                totalTokens: { valor: numericValues.totalTokens.valor, tipo: numericValues.totalTokens.tipo, 'isNaN': isNaN(numericValues.totalTokens.valor) },
                 userId: numericValues.userId
             });
 
             // Validar valores numéricos
             if (isNaN(numericValues.currentValue.valor) || numericValues.currentValue.valor < 0) {
-                console.log('Erro: currentValue inválido:', numericValues.currentValue.valor);
+                console.log('Error: Invalid currentValue:', numericValues.currentValue.valor);
                 return res.status(400).json({ 
-                    error: 'currentValue deve ser um número maior ou igual a zero',
+                    error: 'currentValue must be a number greater than or equal to zero',
                     receivedValue: numericValues.currentValue.valor
                 });
             }
 
             if (isNaN(numericValues.totalTokens.valor) || numericValues.totalTokens.valor < 1) {
-                console.log('Erro: totalTokens inválido:', numericValues.totalTokens.valor);
+                console.log('Error: Invalid totalTokens:', numericValues.totalTokens.valor);
                 return res.status(400).json({ 
-                    error: 'totalTokens deve ser um número maior que zero',
+                    error: 'totalTokens must be a number greater than zero',
                     receivedValue: numericValues.totalTokens.valor
                 });
             }
@@ -270,28 +270,28 @@ class RWAController {
                 user_id: numericValues.userId
             };
 
-            console.log('Dados convertidos para snake_case:', rwaDataToInsert);
+            console.log('Converted data to snake_case:', rwaDataToInsert);
             
             // Criar o RWA
             const rwa = await RWA.create(rwaDataToInsert);
-            console.log('RWA criado com sucesso:', JSON.stringify(rwa, null, 2));
+            console.log('RWA created successfully:', JSON.stringify(rwa, null, 2));
 
             // Criar os tokens NFT em lotes
-            console.log(`Iniciando criação de ${numericValues.totalTokens.valor} tokens NFT para o RWA ${rwa.id}`);
+            console.log(`Starting creation of ${numericValues.totalTokens.valor} NFT tokens for RWA ${rwa.id}`);
             const tokens = await RWA.createTokensInBatches(rwa.id, numericValues.userId, numericValues.totalTokens.valor);
-            console.log(`${tokens.length} tokens NFT criados com sucesso para o RWA ${rwa.id}`);
+            console.log(`${tokens.length} NFT tokens created successfully for RWA ${rwa.id}`);
             
             // Converter de volta para camelCase antes de enviar para o frontend
             const camelCaseRwa = convertToCamelCase(rwa);
             camelCaseRwa.tokens = tokens.map(token => convertToCamelCase(token));
             
-            console.log('=== RWA CRIADO COM SUCESSO ===');
+            console.log('=== RWA CREATED SUCCESSFULLY ===');
             res.status(201).json(camelCaseRwa);
         } catch (error) {
-            console.error('=== ERRO AO CRIAR RWA ===');
-            console.error('Erro:', error);
+            console.error('=== ERROR CREATING RWA ===');
+            console.error('Error:', error);
             console.error('Stack trace:', error.stack);
-            console.error('Dados que causaram o erro:', JSON.stringify(req.body, null, 2));
+            console.error('Data causing error:', JSON.stringify(req.body, null, 2));
             res.status(500).json({ 
                 error: error.message,
                 details: process.env.NODE_ENV === 'development' ? error.stack : undefined
@@ -303,7 +303,7 @@ class RWAController {
         try {
             const rwa = await RWA.findById(req.params.id);
             if (!rwa) {
-                return res.status(404).json({ error: 'RWA não encontrado' });
+                return res.status(404).json({ error: 'RWA not found' });
             }
             
             // Converter para camelCase antes de enviar para o frontend
@@ -324,7 +324,7 @@ class RWAController {
         try {
             const userId = Number(req.params.userId);
             if (isNaN(userId) || userId <= 0) {
-                return res.status(400).json({ error: 'userId inválido' });
+                return res.status(400).json({ error: 'Invalid userId' });
             }
 
             const rwas = await RWA.findByUserId(userId);
@@ -357,21 +357,21 @@ class RWAController {
             if (rwaData.currentValue !== undefined) {
                 rwaData.currentValue = Number(rwaData.currentValue);
                 if (rwaData.currentValue < 0) {
-                    return res.status(400).json({ error: 'currentValue deve ser maior ou igual a zero' });
+                    return res.status(400).json({ error: 'currentValue must be greater than or equal to zero' });
                 }
             }
 
             if (rwaData.totalTokens !== undefined) {
                 rwaData.totalTokens = Number(rwaData.totalTokens);
                 if (rwaData.totalTokens < 1) {
-                    return res.status(400).json({ error: 'totalTokens deve ser maior que zero' });
+                    return res.status(400).json({ error: 'totalTokens must be greater than zero' });
                 }
             }
 
             if (rwaData.userId !== undefined) {
                 rwaData.userId = Number(rwaData.userId);
                 if (rwaData.userId <= 0) {
-                    return res.status(400).json({ error: 'userId deve ser maior que zero' });
+                    return res.status(400).json({ error: 'userId must be greater than zero' });
                 }
             }
             
@@ -380,7 +380,7 @@ class RWAController {
             const rwa = await RWA.update(id, snakeCaseData);
             
             if (!rwa) {
-                return res.status(404).json({ error: 'RWA não encontrado' });
+                return res.status(404).json({ error: 'RWA not found' });
             }
             
             // Converter para camelCase antes de enviar para o frontend
@@ -403,10 +403,10 @@ class RWAController {
             const result = await RWA.delete(id);
             
             if (!result) {
-                return res.status(404).json({ error: 'RWA não encontrado' });
+                return res.status(404).json({ error: 'RWA not found' });
             }
             
-            res.json({ message: 'RWA deletado com sucesso' });
+            res.json({ message: 'RWA successfully deleted' });
         } catch (error) {
             res.status(500).json({ error: error.message });
         }
@@ -438,7 +438,7 @@ class RWAController {
             const { latitude, longitude, radius } = req.query;
             
             if (!latitude || !longitude) {
-                return res.status(400).json({ error: 'Latitude e longitude são obrigatórios' });
+                return res.status(400).json({ error: 'Latitude and longitude are required' });
             }
 
             const rwas = await RWA.findByProximity(
@@ -469,7 +469,7 @@ class RWAController {
             const tokens = await RWA.findTokensByOwner(userId);
             
             if (!tokens) {
-                return res.status(404).json({ error: 'Nenhum token encontrado para este usuário' });
+                return res.status(404).json({ error: 'No tokens found for this user' });
             }
             
             res.json(convertToCamelCase(tokens));
@@ -484,7 +484,7 @@ class RWAController {
             const user = await RWA.findUserById(userId);
             
             if (!user) {
-                return res.status(404).json({ error: 'Usuário não encontrado' });
+                return res.status(404).json({ error: 'User not found' });
             }
             
             res.json(convertToCamelCase(user));
@@ -499,42 +499,42 @@ class RWAController {
             const { pricePerToken } = req.body;
             const newOwnerId = req.user.id;
 
-            console.log('\n=== INÍCIO DA TRANSFERÊNCIA DE TOKEN ===');
-            console.log('Dados recebidos:');
+            console.log('\n=== STARTING TOKEN TRANSFER ===');
+            console.log('Received data:');
             console.log('- Token ID:', tokenId);
-            console.log('- Preço por token:', pricePerToken);
-            console.log('- Novo dono (ID):', newOwnerId);
+            console.log('- Price per token:', pricePerToken);
+            console.log('- New owner (ID):', newOwnerId);
             console.log('- Headers:', JSON.stringify(req.headers, null, 2));
-            console.log('- Body completo:', JSON.stringify(req.body, null, 2));
+            console.log('- Full body:', JSON.stringify(req.body, null, 2));
 
             const trx = await db.transaction();
-            console.log('\n=== INICIANDO TRANSAÇÃO ===');
+            console.log('\n=== STARTING TRANSACTION ===');
 
             try {
                 // Buscar o token
-                console.log('\n=== BUSCANDO TOKEN ===');
+                console.log('\n=== SEARCHING TOKEN ===');
                 const token = await RWANFTToken.query(trx)
                     .findById(tokenId);
                     
                 if (!token) {
-                    console.log('Token não encontrado');
-                    throw new Error('Token não encontrado');
+                    console.log('Token not found');
+                    throw new Error('Token not found');
                 }
-                console.log('Token encontrado:', JSON.stringify(token, null, 2));
+                console.log('Token found:', JSON.stringify(token, null, 2));
 
                 // Atualizar o dono do token
-                console.log('\n=== ATUALIZANDO DONO DO TOKEN ===');
-                console.log('Dono atual:', token.owner_user_id);
-                console.log('Novo dono:', newOwnerId);
+                console.log('\n=== UPDATING TOKEN OWNER ===');
+                console.log('Current owner:', token.owner_user_id);
+                console.log('New owner:', newOwnerId);
                 
                 const updatedToken = await RWANFTToken.query(trx)
                     .patchAndFetchById(tokenId, {
                         owner_user_id: newOwnerId
                     });
-                console.log('Token atualizado:', JSON.stringify(updatedToken, null, 2));
+                console.log('Token updated:', JSON.stringify(updatedToken, null, 2));
 
                 // Registrar a transação
-                console.log('\n=== REGISTRANDO TRANSAÇÃO ===');
+                console.log('\n=== RECORDING TRANSACTION ===');
                 const transactionData = {
                     token_id: tokenId,
                     from_user_id: token.owner_user_id,
@@ -543,13 +543,13 @@ class RWAController {
                     price_per_token: pricePerToken,
                     created_at: new Date()
                 };
-                console.log('Dados da transação:', JSON.stringify(transactionData, null, 2));
+                console.log('Transaction data:', JSON.stringify(transactionData, null, 2));
                 
                 await trx('rwa_token_transactions').insert(transactionData);
-                console.log('Transação registrada com sucesso');
+                console.log('Transaction recorded successfully');
 
                 // Criar registro da venda
-                console.log('\n=== CRIANDO REGISTRO DE VENDA ===');
+                console.log('\n=== CREATING SALE RECORD ===');
                 const saleData = {
                     rwa_id: token.rwa_id,
                     token_id: token.id,
@@ -561,29 +561,29 @@ class RWAController {
                     status: 'completed',
                     created_at: new Date()
                 };
-                console.log('Dados da venda:', JSON.stringify(saleData, null, 2));
+                console.log('Sale data:', JSON.stringify(saleData, null, 2));
                 
                 await trx('rwa_token_sales').insert(saleData);
-                console.log('Venda registrada com sucesso');
+                console.log('Sale recorded successfully');
 
                 await trx.commit();
-                console.log('\n=== TRANSAÇÃO CONCLUÍDA COM SUCESSO ===');
+                console.log('\n=== TRANSACTION COMPLETED SUCCESSFULLY ===');
                 
                 const response = convertToCamelCase(updatedToken);
-                console.log('\n=== RESPOSTA ENVIADA ===');
+                console.log('\n=== RESPONSE SENT ===');
                 console.log(JSON.stringify(response, null, 2));
                 
                 res.json(response);
             } catch (error) {
-                console.error('\n=== ERRO DURANTE A TRANSAÇÃO ===');
-                console.error('Erro:', error);
+                console.error('\n=== ERROR DURING TRANSACTION ===');
+                console.error('Error:', error);
                 console.error('Stack:', error.stack);
                 await trx.rollback();
                 throw error;
             }
         } catch (error) {
-            console.error('\n=== ERRO AO TRANSFERIR TOKEN ===');
-            console.error('Erro:', error);
+            console.error('\n=== ERROR TRANSFERING TOKEN ===');
+            console.error('Error:', error);
             console.error('Stack:', error.stack);
             res.status(500).json({ error: error.message });
         }
