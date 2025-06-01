@@ -1,173 +1,119 @@
-# Backend RWA Cosmos com Wallet e KYC
+# 🌟 IMOLATAM: Tokenizing Real Estate in Latin America 🌟
 
-Backend para o projeto RWA Cosmos, desenvolvido com Node.js, Express e PostgreSQL, utilizando autenticação via wallet (Neutron) e processo de KYC.
+## 📋 Overview
+IMOLATAM is an innovative platform revolutionizing real estate investment in Latin America through blockchain-based property tokenization. Our mission is to democratize access to the real estate market, allowing investors of all sizes to participate in this traditionally exclusive market.
 
-## Estrutura do Projeto
+## 🔐 Authentication Flow
 
-```
-src/
-├── index.js               # Ponto de entrada da aplicação
-├── controllers/           # Controladores 
-│   ├── authController.js  # Controlador de autenticação
-│   ├── usersController.js # Controlador de usuários
-│   ├── kycController.js   # Controlador de KYC
-│   └── adminController.js # Controlador de administração
-├── middleware/            # Middlewares
-│   ├── walletAuth.js      # Autenticação via wallet
-│   ├── jwtAuth.js         # Validação de token JWT
-│   └── adminOnly.js       # Restrição para admin
-├── routes/                # Rotas da API
-│   ├── auth.js            # Rotas de autenticação
-│   ├── users.js           # Rotas de usuários
-│   └── admin.js           # Rotas de administração
-├── database/              # Banco de dados
-│   ├── connection.js      # Conexão com PostgreSQL
-│   ├── migrate.js         # Script de migração
-│   └── migrations/        # Arquivos SQL de migração
-└── mocks/                 # Dados mockados para testes
-```
+The system uses secure message signature-based authentication:
 
-## Banco de Dados
+1. Frontend requests a nonce for the wallet address
+2. Backend generates and stores a unique nonce
+3. User signs the nonce with their wallet (Keplr)
+4. Frontend sends the address, nonce, and signature
+5. Backend validates the signature and generates a JWT token
+6. All subsequent requests require the `Authorization: Bearer <token>` header
 
-O projeto utiliza PostgreSQL com as seguintes tabelas:
+## 🏠 Main Features
 
-### Users
-```sql
-CREATE TABLE users (
-  id SERIAL PRIMARY KEY,
-  address VARCHAR(100) NOT NULL UNIQUE,
-  role VARCHAR(20) NOT NULL DEFAULT 'user',
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-```
+### 1. Real Estate Tokenization
+- Creation of NFT tokens representing real properties
+- Division of properties into tradable tokens
+- Complete metadata and documentation registration
+- Blockchain integration for authenticity guarantee
 
-### KYC
-```sql
-CREATE TABLE kyc (
-  id SERIAL PRIMARY KEY,
-  user_address VARCHAR(100) REFERENCES users(address),
-  nome VARCHAR(100),
-  cpf VARCHAR(20),
-  documento_frente_cid VARCHAR(255),
-  documento_verso_cid VARCHAR(255),
-  selfie_1_cid VARCHAR(255),
-  selfie_2_cid VARCHAR(255),
-  status VARCHAR(20) DEFAULT 'pendente',
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-```
+### 2. Token Marketplace
+- Listing of tokens available for purchase
+- Advanced search system with filters
+- Price and transaction history
+- Intuitive interface for buying and selling
 
-### Wallet Nonces
-```sql
-CREATE TABLE wallet_nonces (
-  address VARCHAR(100) PRIMARY KEY,
-  nonce VARCHAR(255) NOT NULL,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-```
+### 3. KYC (Know Your Customer)
+- ID document upload
+- Selfie verification
+- Administrator approval process
+- Real-time verification status
 
-## Rotas Disponíveis
+## 🛠️ Available APIs
 
-### Autenticação (`/api/auth`)
-- `GET /nonce` - Obter nonce para autenticação
-- `POST /wallet-login` - Login via wallet com assinatura
+### Authentication (`/api/auth`)
+- `GET /nonce` - Get nonce for authentication
+- `POST /wallet-login` - Login via wallet with signature
 
-### Usuários (`/api/users`)
-- `GET /me` - Obter dados do usuário autenticado
-- `POST /kyc` - Enviar documentos para KYC
-- `GET /kyc` - Obter informações do KYC do usuário
+### Users (`/api/users`)
+- `GET /me` - Get authenticated user data
+- `POST /kyc` - Submit KYC documents
+- `GET /kyc` - Get user KYC information
+
+### Marketplace (`/api/marketplace`)
+- `GET /listings` - List available tokens
+- `POST /listings` - Create new listing
+- `GET /listings/search` - Advanced search
+- `GET /listings/:id` - Listing details
 
 ### Admin (`/api/admin`)
-- `GET /kyc-list` - Listar todos os KYCs (apenas admin)
-- `PATCH /kyc-status/:id` - Aprovar/rejeitar KYC (apenas admin)
+- `GET /kyc-list` - List all KYCs
+- `PATCH /kyc-status/:id` - Approve/reject KYC
 
-## Fluxo de Autenticação
+## 💻 Technology Stack
 
-O sistema utiliza autenticação segura baseada em assinatura de mensagem:
+### Backend
+- Node.js with Express
+- PostgreSQL database
+- Objection.js for ORM
+- JWT for authentication
+- Swagger for API documentation
 
-1. O frontend solicita um nonce para o endereço da wallet
-2. O backend gera e armazena um nonce único
-3. O usuário assina o nonce com sua wallet (Keplr)
-4. O frontend envia o endereço, nonce e assinatura
-5. O backend valida a assinatura e gera um token JWT
-6. Todas as requisições subsequentes exigem o cabeçalho `Authorization: Bearer <token>`
+### Blockchain
+- Cosmos Network integration
+- NFT support
+- Smart Contracts for tokenization
+- Secure and transparent transactions
 
-## Fluxo de KYC
+## 🚀 Installation
 
-1. Usuário envia documentos (frente/verso) e selfies
-2. Documentos são armazenados (simulação IPFS)
-3. Admin visualiza a lista de KYCs pendentes
-4. Admin aprova ou rejeita o KYC
-
-## Exemplo de Requisições
-
-### Obter Nonce
-```http
-GET /api/auth/nonce?address=neutron1xyz123abc456def789ghi
-```
-
-### Login via Wallet
-```http
-POST /api/auth/wallet-login
-Content-Type: application/json
-
-{
-  "address": "neutron1xyz123abc456def789ghi",
-  "signature": "assinatura_gerada_pela_wallet",
-  "nonce": "nonce_obtido_anteriormente"
-}
-```
-
-### Requisição Autenticada
-```http
-GET /api/users/me
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-```
-
-## Instalação
-
-1. Clone o repositório
+1. Clone the repository
    ```bash
-   git clone [url-do-repositorio]
+   git clone [repository-url]
    ```
 
-2. Instale as dependências
+2. Install dependencies
    ```bash
    npm install
    ```
 
-3. Configure as variáveis de ambiente
-   - Copie o arquivo `.env.example` para `.env`
-   - Ajuste as variáveis do PostgreSQL
-   - Adicione `JWT_SECRET` para assinatura dos tokens
+3. Configure environment variables
+   - Copy `.env.example` to `.env`
+   - Adjust PostgreSQL variables
+   - Add `JWT_SECRET` for token signing
 
-4. Crie o banco de dados PostgreSQL
+4. Create PostgreSQL database
    ```bash
    createdb rwa_cosmos
    ```
 
-5. Execute as migrações
+5. Run migrations
    ```bash
    node src/database/migrate.js
    ```
 
-6. Inicie o servidor
+6. Start the server
    ```bash
-   # Modo desenvolvimento
+   # Development mode
    npm run dev
 
-   # Modo produção
+   # Production mode
    npm start
    ```
 
-## Requisitos
+## 📋 Requirements
 
-- Node.js (versão 14 ou superior)
+- Node.js (version 14 or higher)
 - PostgreSQL
-- express-fileupload (para upload de documentos)
-- jsonwebtoken (para autenticação JWT)
-- @cosmjs/amino (para validação de assinaturas)
+- express-fileupload (for document upload)
+- jsonwebtoken (for JWT authentication)
+- @cosmjs/amino (for signature validation)
 
-## Licença
+## 📝 License
 
 ISC
